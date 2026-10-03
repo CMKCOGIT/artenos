@@ -1,0 +1,6 @@
+{
+  "name": "Artenós — Marketplace & Ecossistema de Artesanato Brasileiro",
+  "description": "Plataforma completa de artesanato brasileiro conectando artesãs, compradores e fornecedores de matéria-prima com vitrine, calculadora de precificação, controle de estoque e chat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
