@@ -31,7 +31,6 @@ export const CustomerHomeView: React.FC = () => {
     setCurrentRole,
     submitCustomRequest,
     setIsOnboardingOpen,
-    notifyPendingIntegration,
   } = useMarketplace();
 
   const [searchQuery, setSearchQuery] = useState('');

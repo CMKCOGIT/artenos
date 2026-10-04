@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Store, Check, ExternalLink, Sparkles, MapPin, Camera } from 'lucide-react';
+import { Store, Check, ExternalLink, Sparkles, MapPin, Camera, CheckCircle2 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
-import { IntegrationPending } from '../../components/common/IntegrationPending';
 
 export const ArtisanStoreProfileView: React.FC = () => {
-  const { currentArtisan, updateArtisanProfile, navigate, setIsArchitectureOpen } = useMarketplace();
+  const { currentArtisan, updateArtisanProfile, navigate } = useMarketplace();
 
   const [studioName, setStudioName] = useState(currentArtisan?.studioName || '');
   const [artisanName, setArtisanName] = useState(currentArtisan?.name || '');
@@ -16,11 +15,11 @@ export const ArtisanStoreProfileView: React.FC = () => {
   const [specialties, setSpecialties] = useState(currentArtisan?.specialties ? currentArtisan.specialties.join(', ') : '');
   const [pixKey, setPixKey] = useState(currentArtisan?.pixKey || '');
 
-  const [showPending, setShowPending] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateArtisanProfile({
+    await updateArtisanProfile({
       studioName,
       name: artisanName,
       location,
@@ -31,7 +30,8 @@ export const ArtisanStoreProfileView: React.FC = () => {
       specialties: specialties.split(',').map((s) => s.trim()).filter(Boolean),
       pixKey,
     });
-    setShowPending(true);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 4000);
   };
 
   return (
@@ -57,14 +57,11 @@ export const ArtisanStoreProfileView: React.FC = () => {
         )}
       </div>
 
-      {showPending && (
-        <IntegrationPending
-          title="Atualização de Loja Pendente"
-          actionName="Perfil do Atelier"
-          description="Os dados do seu atelier foram validados com sucesso no front-end. A sincronização definitiva com o catálogo público será concluída após a conexão com o banco de dados Supabase."
-          onViewArchitecture={() => setIsArchitectureOpen(true)}
-          onClose={() => setShowPending(false)}
-        />
+      {savedSuccess && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-xs text-emerald-900">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Informações do ateliê atualizadas com sucesso!</span>
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCC] shadow-xs space-y-6">

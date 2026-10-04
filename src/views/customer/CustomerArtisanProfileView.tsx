@@ -17,7 +17,6 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
     addToCart,
     toggleFavorite,
     isFavorite,
-    notifyPendingIntegration,
   } = useMarketplace();
 
   const artisan = artisans.find((a) => a.id === artisanId);
@@ -87,10 +86,7 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
                   if (firstProd) {
                     startChatWithArtisan(firstProd);
                   } else {
-                    notifyPendingIntegration(
-                      'Conversa com a Artesã',
-                      `Canal de mensagem direta com ${artisan.name} aguardando conexão em tempo real.`
-                    );
+                    navigate('/mensagens');
                   }
                 }}
                 className="bg-[#8E3E19] hover:bg-[#733113] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"

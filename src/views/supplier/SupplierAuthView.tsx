@@ -110,24 +110,6 @@ export const SupplierAuthView: React.FC<SupplierAuthViewProps> = ({
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoginEmail('comercial@fiosbrasil.ind.br');
-    setLoginPassword('••••••••');
-    setIsLoading(true);
-
-    await login({
-      email: 'comercial@fiosbrasil.ind.br',
-      password: 'demo',
-      role: 'supplier',
-    });
-    setIsLoading(false);
-    setSuccessMsg('Conectado como Fios & Fibras Brasil Indústria!');
-    setTimeout(() => {
-      if (onSuccess) onSuccess();
-      else navigate('/fornecedor/dashboard');
-    }, 700);
-  };
-
   return (
     <div className="min-h-screen bg-[#F0F5F2] py-10 px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
       {/* Return to Public Vitrine Button */}
@@ -189,29 +171,6 @@ export const SupplierAuthView: React.FC<SupplierAuthViewProps> = ({
                 <span><strong>Pagamento Garantido:</strong> Transações processadas com segurança pela infraestrutura Artenós.</span>
               </div>
             </div>
-          </div>
-
-          {/* Quick Demo Access Box */}
-          <div className="mt-8 pt-6 border-t border-[#D2E3DB]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#557567] block mb-2">
-              Acesso Rápido de Teste (Fornecedor Modelo)
-            </span>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full bg-[#E0EFE8] hover:bg-[#D5E8DF] text-[#122B20] p-3 rounded-2xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer border border-[#CCE3D7]"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-[#1A543E] text-white flex items-center justify-center font-bold text-xs">
-                  F
-                </div>
-                <div className="text-left">
-                  <span className="font-bold block text-xs">Fios & Fibras Brasil</span>
-                  <span className="text-[10px] text-[#4A6E5D]">Americana - SP · CNPJ Homologado</span>
-                </div>
-              </div>
-              <Sparkles className="w-4 h-4 text-[#1A543E]" />
-            </button>
           </div>
         </div>
 

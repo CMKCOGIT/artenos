@@ -5,7 +5,6 @@ import {
   MessageSquare,
   User,
   Compass,
-  Terminal,
   Store,
   Factory,
   ShieldCheck,
@@ -20,7 +19,6 @@ import {
   PhoneCall,
   LogOut,
   ArrowRight,
-  Database,
 } from 'lucide-react';
 import { useMarketplace } from '../store/marketplaceStore';
 
@@ -36,7 +34,6 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
     cart,
     customerProfile,
     conversations,
-    setIsArchitectureOpen,
     setIsAssistedSignupOpen,
     setIsOnboardingOpen,
     sessions,
@@ -97,37 +94,48 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
 
             <span aria-hidden="true" className="text-[#D9CDBF] hidden xs:inline">|</span>
 
-            {/* Profile Navigation Pills (Interactive Buttons) */}
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-white/70 p-0.5 rounded-lg border border-[#E0D4C5]">
-              <button
-                onClick={() => setCurrentRole('customer')}
-                className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-md bg-[#8E3E19] text-white shadow-2xs transition-colors cursor-pointer"
-              >
-                Comprador
-              </button>
-              <button
-                onClick={() => setCurrentRole('artisan')}
-                className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#5C4A3E] hover:text-[#8E3E19] hover:bg-white rounded-md transition-colors cursor-pointer"
-                title="Painel da Artesã"
-              >
-                <Store className="w-3 h-3 text-[#8E3E19]" />
-                <span className="hidden sm:inline">Artesã</span>
-              </button>
-              <button
-                onClick={() => setCurrentRole('supplier')}
-                className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#5C4A3E] hover:text-[#1A543E] hover:bg-white rounded-md transition-colors cursor-pointer"
-                title="Portal do Fornecedor"
-              >
-                <Factory className="w-3 h-3 text-[#1A543E]" />
-                <span className="hidden sm:inline">Fornecedor</span>
-              </button>
-              <button
-                onClick={() => setCurrentRole('admin')}
-                className="px-1.5 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#735F52] hover:text-[#2D241E] hover:bg-white rounded-md transition-colors cursor-pointer"
-                title="Painel Administrativo"
-              >
-                Admin
-              </button>
+            {/* Discrete institutional links (Mercado Livre inspired storefront) */}
+            <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-[#6E594C]">
+              {customerUser?.role === 'artisan' ? (
+                <button
+                  onClick={() => navigate('/artesa/dashboard')}
+                  className="flex items-center gap-1 font-semibold text-[#8E3E19] hover:text-[#733113] transition-colors cursor-pointer"
+                >
+                  <Store className="w-3 h-3 text-[#8E3E19]" />
+                  <span>Meu Painel de Artesã</span>
+                </button>
+              ) : customerUser?.role === 'supplier' ? (
+                <button
+                  onClick={() => navigate('/fornecedor/dashboard')}
+                  className="flex items-center gap-1 font-semibold text-[#1A543E] hover:text-[#133f2e] transition-colors cursor-pointer"
+                >
+                  <Factory className="w-3 h-3 text-[#1A543E]" />
+                  <span>Portal Fornecedor</span>
+                </button>
+              ) : customerUser?.role === 'admin' ? (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="font-medium text-[#735F52] hover:text-[#2D241E] transition-colors cursor-pointer"
+                >
+                  Painel Administrativo
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate('/artesa/cadastrar')}
+                    className="hover:text-[#8E3E19] font-medium transition-colors cursor-pointer"
+                  >
+                    Venda na Artenós
+                  </button>
+                  <span aria-hidden="true" className="text-[#D9CDBF]">·</span>
+                  <button
+                    onClick={() => navigate('/fornecedor/cadastrar')}
+                    className="hover:text-[#1A543E] font-medium transition-colors cursor-pointer"
+                  >
+                    Fornecedores
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -504,17 +512,6 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
                   <PhoneCall className="w-4 h-4 text-[#1A543E]" />
                   <span>Cadastro Assistido por WhatsApp</span>
                 </button>
-
-                <button
-                  onClick={() => {
-                    setIsArchitectureOpen(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2.5 text-xs text-[#5C4A3E] hover:text-[#2D241E] p-2 rounded-xl hover:bg-[#FAF6F0] cursor-pointer"
-                >
-                  <Terminal className="w-4 h-4 text-[#8C7667]" />
-                  <span>Documentação Técnica & SQL</span>
-                </button>
               </div>
             </div>
 
@@ -651,27 +648,17 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
             <div className="space-y-2.5 text-xs">
               <h4 className="font-bold uppercase tracking-wider text-[#E5A882]">Ecossistema</h4>
               <ul className="space-y-2 text-[#C9BDB0]">
-                <li><button onClick={() => setCurrentRole('artisan')} className="hover:text-white cursor-pointer">Painel Exclusivo da Artesã</button></li>
-                <li><button onClick={() => setCurrentRole('supplier')} className="hover:text-white cursor-pointer">Painel de Fornecedores de Insumos</button></li>
+                <li><button onClick={() => navigate('/artesa/cadastrar')} className="hover:text-white cursor-pointer">Venda na Artenós (Ateliês)</button></li>
+                <li><button onClick={() => navigate('/fornecedor/cadastrar')} className="hover:text-white cursor-pointer">Portal de Fornecedores de Insumos</button></li>
                 <li><button onClick={() => setIsAssistedSignupOpen(true)} className="hover:text-white cursor-pointer">Cadastro Assistido por WhatsApp</button></li>
-                <li><button onClick={() => setCurrentRole('admin')} className="hover:text-white cursor-pointer">Painel de Governança (Admin)</button></li>
               </ul>
             </div>
 
             <div className="space-y-2 text-xs text-[#C9BDB0]">
-              <h4 className="font-bold uppercase tracking-wider text-[#E5A882]">Transparência</h4>
+              <h4 className="font-bold uppercase tracking-wider text-[#E5A882]">Transparência & Split</h4>
               <p className="text-xs text-[#B5A596] leading-relaxed">
-                90% do valor de cada peça comprada vai direto para a conta bancária da artesã criadora.
+                90% do valor de cada peça comprada vai direto para a conta bancária da artesã criadora. Marketplace ético, rastreável e autêntico.
               </p>
-              <div className="pt-1">
-                <button
-                  onClick={() => setIsArchitectureOpen(true)}
-                  className="flex items-center gap-1 text-[11px] text-[#E5A882] hover:text-white cursor-pointer"
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>Documentação & Blueprint SQL</span>
-                </button>
-              </div>
             </div>
           </div>
 

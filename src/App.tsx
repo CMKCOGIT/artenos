@@ -44,19 +44,15 @@ import { SupplierDemandsView } from './views/supplier/SupplierDemandsView';
 // Admin Views
 import { AdminDashboardView } from './views/admin/AdminDashboardView';
 
-// Global Architectural & Assisted Signup Modals
-import { ArchitectureModal } from './components/ArchitectureModal';
+// Global Assisted Modals
 import { AssistedSignupModal } from './components/AssistedSignupModal';
 import { PlatformOnboardingModal } from './components/PlatformOnboardingModal';
-import { IntegrationPendingModal } from './components/common/IntegrationPendingModal';
 
 const GlobalModals: React.FC = () => {
   return (
     <>
-      <ArchitectureModal />
       <AssistedSignupModal />
       <PlatformOnboardingModal />
-      <IntegrationPendingModal />
     </>
   );
 };

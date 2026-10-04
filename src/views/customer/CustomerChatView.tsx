@@ -3,6 +3,7 @@ import { Send, Paperclip, CheckCheck, Check, MessageSquare, ExternalLink, ArrowL
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
 import { EmptyState } from '../../components/common/EmptyState';
+import { StorageService } from '../../services/storage.service';
 
 export const CustomerChatView: React.FC = () => {
   const {
@@ -13,12 +14,12 @@ export const CustomerChatView: React.FC = () => {
     sendMessage,
     products,
     navigate,
-    notifyPendingIntegration,
   } = useMarketplace();
 
   const [input, setInput] = useState('');
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentConv = activeConversation || (conversations.length > 0 ? conversations[0] : null);
   const currentMessages = currentConv ? messages[currentConv.id] || [] : [];
@@ -40,6 +41,15 @@ export const CustomerChatView: React.FC = () => {
     if (!input.trim() || !currentConv) return;
     sendMessage(currentConv.id, input);
     setInput('');
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentConv) return;
+    const res = await StorageService.uploadFile('chat-attachments', file);
+    if (res.success && res.url) {
+      sendMessage(currentConv.id, `[Anexo / Imagem]: ${res.url}`);
+    }
   };
 
   if (conversations.length === 0) {
@@ -214,11 +224,18 @@ export const CustomerChatView: React.FC = () => {
 
             {/* Input Footer */}
             <form onSubmit={handleSend} className="p-3 border-t border-[#EADBCC] bg-white flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*,.pdf"
+                className="hidden"
+              />
               <button
                 type="button"
-                onClick={() => notifyPendingIntegration('Anexo no Chat', 'Envio de imagens/anexos será ativado com Supabase Storage.')}
+                onClick={() => fileInputRef.current?.click()}
                 className="p-2 text-[#8C7667] hover:text-[#2D241E] rounded-xl hover:bg-[#FAF6F0] cursor-pointer"
-                title="Anexar foto"
+                title="Anexar foto ou arquivo"
               >
                 <Paperclip className="w-4 h-4" />
               </button>

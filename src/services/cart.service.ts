@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase/client';
 import { mapProductRowToProduct } from './products.service';
 import type { Cart, CartItem, Product } from '../types';
 
+const GUEST_CART_STORAGE_KEY = 'artenos_guest_cart';
+
 export class CartService {
   /**
    * Calcula totais do carrinho.
@@ -17,10 +19,43 @@ export class CartService {
   }
 
   /**
+   * Recupera o carrinho local do visitante.
+   */
+  static getGuestCart(): CartItem[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const data = localStorage.getItem(GUEST_CART_STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Salva o carrinho local do visitante.
+   */
+  static saveGuestCart(items: CartItem[]): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // Ignora erro de cota
+    }
+  }
+
+  /**
+   * Limpa o carrinho de visitante.
+   */
+  static clearGuestCart(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+  }
+
+  /**
    * Busca itens do carrinho salvos no Supabase para um perfil autenticado.
    */
   static async fetchUserCart(profileId: string): Promise<CartItem[]> {
-    if (!isSupabaseConfigured() || !profileId) return [];
+    if (!isSupabaseConfigured() || !profileId) return this.getGuestCart();
 
     try {
       const { data, error } = await supabase
@@ -54,7 +89,7 @@ export class CartService {
 
       if (error || !data) {
         console.error('[CartService.fetchUserCart] Error:', error);
-        return [];
+        return this.getGuestCart();
       }
 
       return data
@@ -66,8 +101,25 @@ export class CartService {
         }));
     } catch (err) {
       console.error('[CartService.fetchUserCart] Exception:', err);
-      return [];
+      return this.getGuestCart();
     }
+  }
+
+  /**
+   * Mescla os itens de visitante com o carrinho no banco do Supabase após login.
+   */
+  static async mergeGuestCartWithUserCart(profileId: string): Promise<CartItem[]> {
+    const guestItems = this.getGuestCart();
+    if (guestItems.length === 0) {
+      return this.fetchUserCart(profileId);
+    }
+
+    for (const item of guestItems) {
+      await this.syncAddItem(profileId, item.product.id, item.quantity, item.customizationNotes);
+    }
+
+    this.clearGuestCart();
+    return this.fetchUserCart(profileId);
   }
 
   /**
@@ -109,7 +161,10 @@ export class CartService {
    * Limpa o carrinho no Supabase após compra concluída.
    */
   static async syncClearCart(profileId: string) {
-    if (!isSupabaseConfigured() || !profileId) return;
+    if (!isSupabaseConfigured() || !profileId) {
+      this.clearGuestCart();
+      return;
+    }
 
     try {
       await supabase.from('cart_items').delete().eq('profile_id', profileId);

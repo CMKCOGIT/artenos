@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { MessageSquareReply, Send, Check, Clock, MapPin, Package, FileCheck2, ArrowRight } from 'lucide-react';
+import { MessageSquareReply, Send, Check, Clock, MapPin, Package, FileCheck2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency, parseBRLToCents } from '../../utils/formatters';
 import { EmptyState } from '../../components/common/EmptyState';
-import { IntegrationPending } from '../../components/common/IntegrationPending';
 
 export const SupplierDemandsView: React.FC = () => {
   const {
@@ -13,7 +12,6 @@ export const SupplierDemandsView: React.FC = () => {
     supplierCompany,
     currentRoute,
     navigate,
-    setIsArchitectureOpen,
   } = useMarketplace();
 
   const isOrcamentosRoute = currentRoute.startsWith('/fornecedor/orcamentos');
@@ -34,7 +32,7 @@ export const SupplierDemandsView: React.FC = () => {
   const [shippingBRL, setShippingBRL] = useState('');
   const [shippingDays, setShippingDays] = useState('');
   const [notes, setNotes] = useState('');
-  const [showPending, setShowPending] = useState(false);
+  const [quoteSuccessMsg, setQuoteSuccessMsg] = useState('');
 
   const allQuotesList = Object.entries(quotes).flatMap(([demandId, quoteArray]) =>
     quoteArray.map((q) => ({ ...q, demandId }))
@@ -55,7 +53,8 @@ export const SupplierDemandsView: React.FC = () => {
     });
 
     setReplyingDemandId(null);
-    setShowPending(true);
+    setQuoteSuccessMsg('Proposta comercial enviada com sucesso para a artesã!');
+    setTimeout(() => setQuoteSuccessMsg(''), 5000);
     setOfferPriceBRL('');
     setShippingBRL('');
     setShippingDays('');
@@ -109,14 +108,16 @@ export const SupplierDemandsView: React.FC = () => {
         </div>
       </div>
 
-      {showPending && (
-        <IntegrationPending
-          title="Envio de Orçamento Pendente"
-          actionName="Proposta Comercial"
-          description="A proposta comercial foi validada no front-end. O envio definitivo à artesã será concluído após conexão com o banco de dados Supabase."
-          onViewArchitecture={() => setIsArchitectureOpen(true)}
-          onClose={() => setShowPending(false)}
-        />
+      {quoteSuccessMsg && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{quoteSuccessMsg}</span>
+          </div>
+          <button onClick={() => setQuoteSuccessMsg('')} className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer">
+            <Check className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {/* TAB 1: SOLICITAÇÕES */}

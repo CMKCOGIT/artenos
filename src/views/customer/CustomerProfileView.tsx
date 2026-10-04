@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { User, ShieldCheck, MapPin, Heart, Database } from 'lucide-react';
+import { User, ShieldCheck, MapPin, Heart, CheckCircle2 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
-import { IntegrationPending } from '../../components/common/IntegrationPending';
 import { addressSchema } from '../../schemas/customer.schema';
 
 export const CustomerProfileView: React.FC = () => {
-  const { customerProfile, updateCustomerProfile, notifyPendingIntegration, setIsArchitectureOpen } = useMarketplace();
+  const { customerProfile, updateCustomerProfile } = useMarketplace();
 
   const [fullName, setFullName] = useState(customerProfile.fullName || '');
   const [email, setEmail] = useState(customerProfile.email || '');
@@ -20,11 +19,11 @@ export const CustomerProfileView: React.FC = () => {
   const [state, setState] = useState(customerProfile.address?.state || '');
   const [cep, setCep] = useState(customerProfile.address?.cep || '');
 
-  const [showPending, setShowPending] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateCustomerProfile({
+    await updateCustomerProfile({
       fullName,
       email,
       phone,
@@ -39,7 +38,8 @@ export const CustomerProfileView: React.FC = () => {
         cep,
       },
     });
-    setShowPending(true);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 4000);
   };
 
   return (
@@ -53,14 +53,11 @@ export const CustomerProfileView: React.FC = () => {
         </p>
       </div>
 
-      {showPending && (
-        <IntegrationPending
-          title="Integração de Perfil Pendente"
-          actionName="Atualização de Cadastro"
-          description="Os dados foram validados no front-end. A gravação permanente no banco será concluída após a conexão com o Supabase."
-          onViewArchitecture={() => setIsArchitectureOpen(true)}
-          onClose={() => setShowPending(false)}
-        />
+      {savedSuccess && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-xs text-emerald-900">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Dados cadastrais e endereço salvos com sucesso!</span>
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">

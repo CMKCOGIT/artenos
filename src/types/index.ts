@@ -29,6 +29,8 @@ export interface AuthUser {
   companyName?: string;
   cnpj?: string;
   category?: string;
+  status?: 'pending_approval' | 'active' | 'suspended';
+  verified?: boolean;
 }
 
 export interface RegisterPayload {

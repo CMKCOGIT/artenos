@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Package, Sparkles, X, Image as ImageIcon, Eye, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, Sparkles, X, Image as ImageIcon, Eye, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency, parseBRLToCents } from '../../utils/formatters';
 import { EmptyState } from '../../components/common/EmptyState';
-import { IntegrationPending } from '../../components/common/IntegrationPending';
 import { structuralCategories } from '../../data/categoriesData';
 import { productSchema } from '../../schemas/product.schema';
 import { Product } from '../../types';
@@ -17,8 +16,6 @@ export const ArtisanProductsView: React.FC = () => {
     deleteProduct,
     navigate,
     currentRoute,
-    setIsArchitectureOpen,
-    notifyPendingIntegration,
   } = useMarketplace();
 
   const artisanProducts = currentArtisan
@@ -27,6 +24,8 @@ export const ArtisanProductsView: React.FC = () => {
 
   // New product modal state - auto-opens if route is /artesa/produtos/novo
   const [isAddOpen, setIsAddOpen] = useState(() => currentRoute === '/artesa/produtos/novo');
+  const [successBanner, setSuccessBanner] = useState('');
+  const [errorBanner, setErrorBanner] = useState('');
 
   React.useEffect(() => {
     if (currentRoute === '/artesa/produtos/novo') {
@@ -60,7 +59,7 @@ export const ArtisanProductsView: React.FC = () => {
     }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
 
@@ -91,10 +90,9 @@ export const ArtisanProductsView: React.FC = () => {
       return;
     }
 
-    setShowPending(true);
     setIsAddOpen(false);
 
-    addProduct({
+    const res = await addProduct({
       title,
       artisanId: currentArtisan?.id || 'artisan-current',
       artisanName: currentArtisan?.name || 'Mestra Artesã',
@@ -114,6 +112,14 @@ export const ArtisanProductsView: React.FC = () => {
       badge: 'NOVIDADE',
       imageUrl: imageUrl || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80',
     });
+
+    if (res.success) {
+      setSuccessBanner(res.message);
+      setErrorBanner('');
+    } else {
+      setErrorBanner(res.message);
+      setSuccessBanner('');
+    }
   };
 
   return (
@@ -141,14 +147,28 @@ export const ArtisanProductsView: React.FC = () => {
         </button>
       </div>
 
-      {showPending && (
-        <IntegrationPending
-          title="Cadastro de Produto Pendente"
-          actionName="Novo Produto"
-          description="Os dados da peça foram validados com sucesso no front-end pelo schema Zod. O salvamento no catálogo oficial será ativado após conexão com o Supabase."
-          onViewArchitecture={() => setIsArchitectureOpen(true)}
-          onClose={() => setShowPending(false)}
-        />
+      {successBanner && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{successBanner}</span>
+          </div>
+          <button onClick={() => setSuccessBanner('')} className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {errorBanner && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between text-xs text-red-900">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+            <span>{errorBanner}</span>
+          </div>
+          <button onClick={() => setErrorBanner('')} className="text-red-700 hover:text-red-950 p-1 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {artisanProducts.length === 0 ? (

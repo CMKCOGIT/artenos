@@ -114,24 +114,6 @@ export const ArtisanAuthView: React.FC<ArtisanAuthViewProps> = ({
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoginEmail('maria.artesa@artenos.com.br');
-    setLoginPassword('••••••••');
-    setIsLoading(true);
-
-    await login({
-      email: 'maria.artesa@artenos.com.br',
-      password: 'demo',
-      role: 'artisan',
-    });
-    setIsLoading(false);
-    setSuccessMsg('Conectada como Maria das Dores (Ateliê Fios de Afeto)!');
-    setTimeout(() => {
-      if (onSuccess) onSuccess();
-      else navigate('/artesa/dashboard');
-    }, 700);
-  };
-
   return (
     <div className="min-h-screen bg-[#F8F5EE] py-10 px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
       {/* Return to Public Vitrine Button */}
@@ -211,29 +193,6 @@ export const ArtisanAuthView: React.FC<ArtisanAuthViewProps> = ({
                 Solicitar Cadastro Assistido no WhatsApp
               </button>
             </div>
-          </div>
-
-          {/* Quick Demo Access Box */}
-          <div className="mt-8 pt-6 border-t border-[#EADBCC]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C7667] block mb-2">
-              Acesso Rápido de Teste (Ateliê Modelo)
-            </span>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full bg-[#EFE7DC] hover:bg-[#E4D9C9] text-[#2D241E] p-3 rounded-2xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer border border-[#DACBB8]"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-[#8E3E19] text-white flex items-center justify-center font-bold text-xs">
-                  M
-                </div>
-                <div className="text-left">
-                  <span className="font-bold block text-xs">Maria das Dores</span>
-                  <span className="text-[10px] text-[#6B5A4E]">Ateliê Fios de Afeto (Caruaru - PE)</span>
-                </div>
-              </div>
-              <Sparkles className="w-4 h-4 text-[#8E3E19]" />
-            </button>
           </div>
         </div>
 

@@ -6,8 +6,8 @@ import { publicEnv } from '../env';
  * Utiliza apenas variáveis públicas declaradas e validadas em publicEnv.
  * NUNCA utilize ou importe a chave service_role neste cliente.
  */
-const supabaseUrl = publicEnv.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey = publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = publicEnv.VITE_SUPABASE_URL;
+const supabasePublishableKey = publicEnv.VITE_SUPABASE_ANON_KEY;
 
 export const supabase: SupabaseClient<any> = createClient<any>(
   supabaseUrl,

@@ -15,7 +15,6 @@ import {
   X,
   LogOut,
   Home,
-  Database,
 } from 'lucide-react';
 import { useMarketplace } from '../store/marketplaceStore';
 

@@ -51,24 +51,6 @@ export const AdminAuthView: React.FC<AdminAuthViewProps> = ({ onSuccess }) => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setEmail('admin@artenos.com.br');
-    setPassword('••••••••');
-    setIsLoading(true);
-
-    await login({
-      email: 'admin@artenos.com.br',
-      password: 'demo',
-      role: 'admin',
-    });
-    setIsLoading(false);
-    setSuccessMsg('Conectado como Superusuário Artenós!');
-    setTimeout(() => {
-      if (onSuccess) onSuccess();
-      else navigate('/admin');
-    }, 700);
-  };
-
   return (
     <div className="min-h-screen bg-[#14100E] text-[#E8DCCF] py-12 px-4 sm:px-6 flex flex-col justify-center items-center">
       {/* Top back button */}
@@ -158,20 +140,6 @@ export const AdminAuthView: React.FC<AdminAuthViewProps> = ({ onSuccess }) => {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        <div className="pt-4 border-t border-[#3D332D]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C7667] block mb-2 text-center">
-            Acesso Rápido de Demonstração
-          </span>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="w-full bg-[#2A221E] hover:bg-[#332A25] text-amber-300 p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#423630]"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Entrar com Conta Admin Demonstração</span>
-          </button>
-        </div>
       </div>
     </div>
   );

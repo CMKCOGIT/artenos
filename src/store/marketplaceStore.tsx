@@ -36,39 +36,40 @@ import {
   ChatService,
   AuthService,
   CustomersService,
+  CartService,
 } from '../services';
-import { isSupabaseConfigured, testSupabaseConnection } from '../lib/supabase/client';
-
-export interface PendingActionNotice {
-  title: string;
-  description: string;
-  validatedDetails?: string;
-}
+import { supabase, isSupabaseConfigured } from '../lib/supabase/client';
 
 interface MarketplaceContextType {
-  // Navigation & Current Role
-  currentRole: UserRole;
-  setCurrentRole: (role: UserRole) => void;
+  // Navigation & Route
   currentRoute: string;
   navigate: (route: string) => void;
+  currentRole: UserRole;
+  setCurrentRole: (role: UserRole) => void;
 
-  // Supabase Live Connection
+  // Supabase Connection Status
   isSupabaseConnected: boolean;
   syncSupabaseData: () => Promise<void>;
 
-  // Multi-profile Auth State
+  // Real Supabase Auth Session
   currentUser: AuthUser | null;
-  sessions: Record<UserRole, AuthUser | null>;
+  userRole: UserRole;
   isAuthenticated: boolean;
-  login: (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => Promise<{ success: boolean; error?: string }>;
-  register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string }>;
-  logout: (role?: UserRole) => Promise<void>;
+  sessions: {
+    customer: AuthUser | null;
+    artisan: AuthUser | null;
+    supplier: AuthUser | null;
+    admin: AuthUser | null;
+  };
+  login: (credentials: { email: string; password?: string; role?: UserRole }) => Promise<{ success: boolean; error?: string }>;
+  register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string; emailConfirmationRequired?: boolean }>;
+  logout: (role?: string) => Promise<void>;
 
   // Products
   products: Product[];
   selectedProduct: Product | null;
   setSelectedProduct: (p: Product | null) => void;
-  addProduct: (product: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => Promise<{ success: boolean; message: string }>;
   updateProduct: (productId: string, updated: Partial<Product>) => Promise<void>;
   updateProductStock: (productId: string, newStock: number) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -85,7 +86,7 @@ interface MarketplaceContextType {
   toggleFavorite: (productId: string) => Promise<void>;
   isFavorite: (productId: string) => boolean;
 
-  // Cart & Checkout
+  // Cart & Checkout (Persisted)
   cart: CartItem[];
   addToCart: (product: Product, quantity?: number, customizationNotes?: string) => void;
   removeFromCart: (productId: string) => void;
@@ -102,7 +103,7 @@ interface MarketplaceContextType {
   activeConversation: Conversation | null;
   setActiveConversation: (conv: Conversation | null) => void;
   messages: Record<string, ChatMessage[]>;
-  sendMessage: (conversationId: string, content: string, attachments?: string[]) => Promise<void>;
+  sendMessage: (conversationId: string, content: string) => Promise<void>;
   startChatWithArtisan: (product: Product) => Promise<void>;
 
   // Supplier Module
@@ -128,23 +129,20 @@ interface MarketplaceContextType {
   updatePlatformCommission: (percent: number) => void;
   toggleAutoApproveArtisans: () => void;
 
-  // Modals & Notices
-  isArchitectureOpen: boolean;
-  setIsArchitectureOpen: (open: boolean) => void;
+  // Global Modals
   isAssistedSignupOpen: boolean;
   setIsAssistedSignupOpen: (open: boolean) => void;
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
-
-  pendingActionNotice: PendingActionNotice | null;
-  setPendingActionNotice: (notice: PendingActionNotice | null) => void;
-  notifyPendingIntegration: (actionName: string, validatedDetails?: string) => void;
+  isArchitectureOpen: boolean;
+  setIsArchitectureOpen: (open: boolean) => void;
+  notifyPendingIntegration: (action?: string, title?: string) => void;
 }
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
 export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Navigation sync with Hash
+  // Navigation sync with URL hash
   const getInitialRoute = () => {
     const hash = window.location.hash.replace(/^#/, '');
     return hash || '/';
@@ -152,56 +150,16 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [currentRoute, setCurrentRoute] = useState<string>(getInitialRoute);
 
-  const isArtisanDashboardRoute = (route: string) => {
-    return [
-      '/artesa/dashboard',
-      '/artesa/minha-loja',
-      '/artesa/produtos',
-      '/artesa/pedidos',
-      '/artesa/precificacao',
-      '/artesa/estoque',
-      '/artesa/mensagens',
-      '/artesa/financeiro',
-      '/artesa/login',
-      '/artesa/cadastrar',
-    ].some((p) => route.startsWith(p));
-  };
-
-  const [currentRole, setCurrentRoleState] = useState<UserRole>(() => {
-    const hash = window.location.hash.replace(/^#/, '');
-    if (isArtisanDashboardRoute(hash)) return 'artisan';
-    if (hash.startsWith('/fornecedor')) return 'supplier';
-    if (hash.startsWith('/admin')) return 'admin';
-    return 'customer';
-  });
-
   const navigate = (route: string) => {
     setCurrentRoute(route);
     window.location.hash = route;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const setCurrentRole = (role: UserRole) => {
-    setCurrentRoleState(role);
-    if (role === 'customer') {
-      navigate('/');
-    } else if (role === 'artisan') {
-      navigate('/artesa/dashboard');
-    } else if (role === 'supplier') {
-      navigate('/fornecedor/dashboard');
-    } else if (role === 'admin') {
-      navigate('/admin');
-    }
-  };
-
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#/, '') || '/';
       setCurrentRoute(hash);
-      if (isArtisanDashboardRoute(hash)) setCurrentRoleState('artisan');
-      else if (hash.startsWith('/fornecedor')) setCurrentRoleState('supplier');
-      else if (hash.startsWith('/admin')) setCurrentRoleState('admin');
-      else setCurrentRoleState('customer');
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -211,18 +169,37 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Supabase Connection Status
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(isSupabaseConfigured());
 
-  // Authentication Sessions
-  const [sessions, setSessions] = useState<Record<UserRole, AuthUser | null>>({
-    customer: null,
-    artisan: null,
-    supplier: null,
-    admin: null,
-  });
-
-  const currentUser = sessions[currentRole];
+  // Real Supabase Auth Session
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const isAuthenticated = Boolean(currentUser);
+  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
+  const userRole: UserRole = currentUser?.role || selectedRole;
+  const currentRole: UserRole = userRole;
 
-  // Data Collections (initialized with clean state)
+  const setCurrentRole = (role: UserRole) => {
+    setSelectedRole(role);
+    if (role === 'artisan') {
+      if (currentUser?.role === 'artisan') navigate('/artesa/dashboard');
+      else navigate('/artesa/login');
+    } else if (role === 'supplier') {
+      if (currentUser?.role === 'supplier') navigate('/fornecedor/dashboard');
+      else navigate('/fornecedor/login');
+    } else if (role === 'admin') {
+      if (currentUser?.role === 'admin') navigate('/admin');
+      else navigate('/admin/login');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const sessions = {
+    customer: currentUser ? currentUser : null,
+    artisan: (currentUser && (currentUser.role === 'artisan' || currentUser.role === 'admin')) ? currentUser : null,
+    supplier: (currentUser && (currentUser.role === 'supplier' || currentUser.role === 'admin')) ? currentUser : null,
+    admin: (currentUser && currentUser.role === 'admin') ? currentUser : null,
+  };
+
+  // Data Collections
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -232,7 +209,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile>(initialCustomerProfile);
   const [supplierCompany, setSupplierCompany] = useState<SupplierCompany>(initialSupplierCompany);
 
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart with initial hydration from guest storage
+  const [cart, setCart] = useState<CartItem[]>(() => CartService.getGuestCart());
   const [orders, setOrders] = useState<Order[]>(initialOrders);
 
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
@@ -246,21 +224,11 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(initialPlatformSettings);
 
-  // Modals
-  const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+  // Modais institucionais
   const [isAssistedSignupOpen, setIsAssistedSignupOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [pendingActionNotice, setPendingActionNotice] = useState<PendingActionNotice | null>(null);
-
-  const notifyPendingIntegration = (actionName: string, validatedDetails?: string) => {
-    setPendingActionNotice({
-      title: isSupabaseConfigured() ? 'Ação Processada' : 'Conexão Supabase Disponível',
-      description: isSupabaseConfigured()
-        ? `${actionName} foi sincronizado com o Supabase.`
-        : `${actionName} validado no front-end. Conecte sua URL e Chave do Supabase para persistência em tempo real.`,
-      validatedDetails,
-    });
-  };
+  const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+  const notifyPendingIntegration = (_action?: string, _title?: string) => {};
 
   // Sync / Load live data from Supabase
   const syncSupabaseData = useCallback(async () => {
@@ -270,97 +238,121 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     try {
-      const ping = await testSupabaseConnection();
-      setIsSupabaseConnected(ping.success);
+      const [prods, arts, mats, dems, ords, convs] = await Promise.all([
+        ProductsService.getProducts(),
+        ArtisansService.getArtisans(),
+        SuppliersService.getMaterials(),
+        SuppliersService.getDemands(),
+        OrdersService.getOrders(),
+        ChatService.getConversations(),
+      ]);
 
-      if (ping.success) {
-        const [prods, arts, mats, dems, ords, convs] = await Promise.all([
-          ProductsService.getProducts(),
-          ArtisansService.getArtisans(),
-          SuppliersService.getMaterials(),
-          SuppliersService.getDemands(),
-          OrdersService.getOrders(),
-          ChatService.getConversations(),
-        ]);
+      if (prods.length > 0) setProducts(prods);
+      if (arts.length > 0) {
+        setArtisans(arts);
+        if (!currentArtisan) setCurrentArtisan(arts[0]);
+      }
+      if (mats.length > 0) setSupplierMaterials(mats);
+      if (dems.length > 0) setDemands(dems);
+      if (ords.length > 0) setOrders(ords);
+      if (convs.length > 0) setConversations(convs);
 
-        if (prods.length > 0) setProducts(prods);
-        if (arts.length > 0) {
-          setArtisans(arts);
-          if (!currentArtisan) setCurrentArtisan(arts[0]);
+      // Carrega usuário autenticado real
+      const user = await AuthService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        // Atualiza perfil da artesã vinculada ao usuário logado
+        if (user.role === 'artisan') {
+          const matchedArtisan = arts.find((a) => a.id === user.id) || null;
+          if (matchedArtisan) setCurrentArtisan(matchedArtisan);
         }
-        if (mats.length > 0) setSupplierMaterials(mats);
-        if (dems.length > 0) setDemands(dems);
-        if (ords.length > 0) setOrders(ords);
-        if (convs.length > 0) setConversations(convs);
+        // Mescla ou carrega o carrinho no banco
+        const userCart = await CartService.mergeGuestCartWithUserCart(user.id);
+        setCart(userCart);
 
-        // Verifica sessão ativa
-        const user = await AuthService.getCurrentUser();
-        if (user) {
-          setSessions((prev) => ({ ...prev, [user.role]: user }));
-        }
+        // Carrega favoritos
+        const favs = await CustomersService.getFavorites(user.id);
+        setCustomerProfile((prev) => ({ ...prev, favoriteProductIds: favs }));
       }
     } catch (err) {
       console.warn('[syncSupabaseData] Warning:', err);
     }
   }, [currentArtisan]);
 
+  // Restauração de sessão e escuta de eventos auth no Supabase
   useEffect(() => {
     syncSupabaseData();
+
+    if (isSupabaseConfigured()) {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          const user = await AuthService.getCurrentUser();
+          setCurrentUser(user);
+          if (user) {
+            const userCart = await CartService.mergeGuestCartWithUserCart(user.id);
+            setCart(userCart);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          setCart(CartService.getGuestCart());
+        }
+      });
+
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
+    }
   }, [syncSupabaseData]);
 
-  // Auth Operations
-  const login = async (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => {
-    if (isSupabaseConfigured()) {
-      const res = await AuthService.login(credentials);
-      if (res.success && res.user) {
-        setSessions((prev) => ({ ...prev, [credentials.role]: res.user! }));
-        return { success: true };
-      }
-      return { success: false, error: res.error || 'Credenciais inválidas no Supabase.' };
+  // Auth Operations (SEM MOCK OU SESSÃO DEMO)
+  const login = async (credentials: { email: string; password?: string; role?: UserRole }) => {
+    const res = await AuthService.login(credentials);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      setSelectedRole(res.user.role);
+      const userCart = await CartService.mergeGuestCartWithUserCart(res.user.id);
+      setCart(userCart);
+      return { success: true };
     }
-
-    // Fallback demo session quando Supabase ainda não estiver conectado
-    const demoUser: AuthUser = {
-      id: `user-${Date.now()}`,
-      name: credentials.email.split('@')[0],
-      email: credentials.email,
-      role: credentials.role,
-    };
-    setSessions((prev) => ({ ...prev, [credentials.role]: demoUser }));
-    return { success: true };
+    return { success: false, error: res.error || 'Credenciais inválidas.' };
   };
 
   const register = async (payload: RegisterPayload) => {
-    if (isSupabaseConfigured()) {
-      const res = await AuthService.register(payload);
-      if (res.success && res.user) {
-        setSessions((prev) => ({ ...prev, [payload.role]: res.user! }));
-        return { success: true };
+    const res = await AuthService.register(payload);
+    if (res.success && res.user) {
+      if (!res.emailConfirmationRequired) {
+        setCurrentUser(res.user);
       }
-      return { success: false, error: res.error || 'Erro ao registrar no Supabase.' };
+      return {
+        success: true,
+        emailConfirmationRequired: res.emailConfirmationRequired,
+      };
     }
-
-    const demoUser: AuthUser = {
-      id: `user-${Date.now()}`,
-      name: payload.name,
-      email: payload.email,
-      role: payload.role,
-      studioName: payload.studioName,
-      location: payload.location,
-    };
-    setSessions((prev) => ({ ...prev, [payload.role]: demoUser }));
-    return { success: true };
+    return { success: false, error: res.error || 'Erro ao registrar usuário.' };
   };
 
-  const logout = async (role?: UserRole) => {
-    const targetRole = role || currentRole;
+  const logout = async (_role?: string) => {
     await AuthService.logout();
-    setSessions((prev) => ({ ...prev, [targetRole]: null }));
+    setCurrentUser(null);
+    setSelectedRole('customer');
+    setCart(CartService.getGuestCart());
+    navigate('/');
   };
 
   // Product Operations
-  const addProduct = async (productData: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => {
-    const artisanId = currentArtisan?.id || sessions.artisan?.id || '00000000-0000-0000-0000-000000000001';
+  const addProduct = async (productData: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser || currentUser.role !== 'artisan') {
+      return { success: false, message: 'Apenas ateliês de artesãs podem publicar produtos.' };
+    }
+
+    if (currentUser.status === 'pending_approval') {
+      return {
+        success: false,
+        message: 'Seu ateliê está em processo de curadoria. A publicação de peças estará disponível após a aprovação da moderação.',
+      };
+    }
+
+    const artisanId = currentArtisan?.id || currentUser.id;
 
     if (isSupabaseConfigured()) {
       const res = await ProductsService.createProduct({
@@ -370,32 +362,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if (res.success && res.data) {
         setProducts((prev) => [res.data!, ...prev]);
-        setPendingActionNotice({
-          title: 'Produto Salvo no Supabase!',
-          description: `A peça "${productData.title}" foi gravada com sucesso nas tabelas products e inventory do seu banco de dados.`,
-        });
-        return;
+        return { success: true, message: 'Peça publicada com sucesso no catálogo da Artenós!' };
       }
+      return { success: false, message: res.message || 'Erro ao gravar produto no banco.' };
     }
 
-    // Adiciona na memória local caso Supabase não esteja conectado
-    const newProd: Product = {
-      id: `prod-${Date.now()}`,
-      slug: productData.title.toLowerCase().replace(/\s+/g, '-'),
-      rating: 5.0,
-      reviewsCount: 0,
-      ...productData,
-      artisanId,
-      artisanName: currentArtisan?.name || 'Artesã',
-      artisanLocation: currentArtisan?.location || 'Brasil',
-      artisanAvatar: currentArtisan?.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
-      createdAt: new Date().toISOString(),
-    };
-    setProducts((prev) => [newProd, ...prev]);
-    setPendingActionNotice({
-      title: 'Produto Cadastrado!',
-      description: `A peça "${productData.title}" foi adicionada. Conecte suas credenciais do Supabase para persistir permanentemente.`,
-    });
+    return { success: false, message: 'Banco de dados não disponível no momento.' };
   };
 
   const updateProduct = async (productId: string, updated: Partial<Product>) => {
@@ -431,6 +403,11 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const approveArtisan = async (artisanId: string) => {
+    if (currentUser?.role !== 'admin') {
+      console.warn('Apenas administradores podem aprovar ateliês.');
+      return;
+    }
+
     if (isSupabaseConfigured()) {
       await ArtisansService.approveArtisan(artisanId);
     }
@@ -441,15 +418,15 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Customer Profile Operations
   const updateCustomerProfile = async (updated: Partial<CustomerProfile>) => {
-    if (sessions.customer?.id && isSupabaseConfigured()) {
-      await CustomersService.updateProfile(sessions.customer.id, updated);
+    if (currentUser?.id && isSupabaseConfigured()) {
+      await CustomersService.updateProfile(currentUser.id, updated);
     }
     setCustomerProfile((prev) => ({ ...prev, ...updated }));
   };
 
   const toggleFavorite = async (productId: string) => {
-    if (sessions.customer?.id && isSupabaseConfigured()) {
-      await CustomersService.toggleFavorite(sessions.customer.id, productId);
+    if (currentUser?.id && isSupabaseConfigured()) {
+      await CustomersService.toggleFavorite(currentUser.id, productId);
     }
     setCustomerProfile((prev) => {
       const current = prev.favoriteProductIds || [];
@@ -465,23 +442,42 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return customerProfile.favoriteProductIds?.includes(productId) || false;
   };
 
-  // Cart Operations
+  // Cart Operations (Persistência no banco para logados, localStorage para visitantes)
   const addToCart = (product: Product, quantity = 1, customizationNotes = '') => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
+      let updated: CartItem[];
       if (existing) {
-        return prev.map((item) =>
+        updated = prev.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + quantity, customizationNotes: customizationNotes || item.customizationNotes }
             : item
         );
+      } else {
+        updated = [...prev, { product, quantity, customizationNotes }];
       }
-      return [...prev, { product, quantity, customizationNotes }];
+
+      if (currentUser?.id) {
+        const itemQuantity = existing ? existing.quantity + quantity : quantity;
+        CartService.syncAddItem(currentUser.id, product.id, itemQuantity, customizationNotes);
+      } else {
+        CartService.saveGuestCart(updated);
+      }
+
+      return updated;
     });
   };
 
   const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+    setCart((prev) => {
+      const updated = prev.filter((item) => item.product.id !== productId);
+      if (currentUser?.id) {
+        CartService.syncRemoveItem(currentUser.id, productId);
+      } else {
+        CartService.saveGuestCart(updated);
+      }
+      return updated;
+    });
   };
 
   const updateCartQty = (productId: string, quantity: number) => {
@@ -489,18 +485,31 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       removeFromCart(productId);
       return;
     }
-    setCart((prev) =>
-      prev.map((item) => (item.product.id === productId ? { ...item, quantity } : item))
-    );
+    setCart((prev) => {
+      const updated = prev.map((item) => (item.product.id === productId ? { ...item, quantity } : item));
+      if (currentUser?.id) {
+        CartService.syncAddItem(currentUser.id, productId, quantity);
+      } else {
+        CartService.saveGuestCart(updated);
+      }
+      return updated;
+    });
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    if (currentUser?.id) {
+      CartService.syncClearCart(currentUser.id);
+    } else {
+      CartService.clearGuestCart();
+    }
+  };
 
   // Order Operations
   const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>): Promise<Order | null> => {
     if (isSupabaseConfigured()) {
       const res = await OrdersService.createOrder({
-        customerId: sessions.customer?.id,
+        customerId: currentUser?.id,
         clientName: orderData.clientName,
         clientEmail: orderData.clientEmail,
         clientPhone: orderData.clientPhone,
@@ -520,17 +529,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return res.order;
       }
     }
-
-    // Fallback local memory
-    const newOrder: Order = {
-      id: `ord-${Date.now()}`,
-      orderNumber: `ART-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`,
-      createdAt: new Date().toISOString(),
-      ...orderData,
-    };
-    setOrders((prev) => [newOrder, ...prev]);
-    clearCart();
-    return newOrder;
+    return null;
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status'], trackingCode?: string) => {
@@ -544,10 +543,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Chat Operations
   const sendMessage = async (conversationId: string, content: string) => {
-    const senderId = currentUser?.id || '00000000-0000-0000-0000-000000000001';
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
 
     if (isSupabaseConfigured()) {
-      const res = await ChatService.sendMessage(conversationId, senderId, content);
+      const res = await ChatService.sendMessage(conversationId, currentUser.id, content);
       if (res.success && res.message) {
         setMessages((prev) => ({
           ...prev,
@@ -559,66 +561,24 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return;
       }
     }
-
-    const localMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      conversationId,
-      senderId,
-      senderName: currentUser?.name || 'Eu',
-      senderRole: currentRole,
-      content,
-      timestamp: new Date().toISOString(),
-      status: 'sent',
-    };
-
-    setMessages((prev) => ({
-      ...prev,
-      [conversationId]: [...(prev[conversationId] || []), localMsg],
-    }));
-
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, lastMessage: content, updatedAt: new Date().toISOString() } : c))
-    );
   };
 
   const startChatWithArtisan = async (product: Product) => {
-    const clientId = sessions.customer?.id || '00000000-0000-0000-0000-000000000002';
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
 
     if (isSupabaseConfigured()) {
-      const res = await ChatService.getOrCreateConversation(clientId, product.artisanId, product);
+      const res = await ChatService.getOrCreateConversation(currentUser.id, product.artisanId, product);
       if (res.success && res.conversation) {
         setActiveConversation(res.conversation);
         if (!conversations.some((c) => c.id === res.conversation!.id)) {
           setConversations((prev) => [res.conversation!, ...prev]);
         }
         navigate('/mensagens');
-        return;
       }
     }
-
-    // Local fallback
-    const convId = `conv-${product.id}`;
-    const newConv: Conversation = {
-      id: convId,
-      productId: product.id,
-      productTitle: product.title,
-      productPriceCents: product.priceCents,
-      productImg: product.imageUrl,
-      artisanId: product.artisanId,
-      artisanName: product.artisanName,
-      artisanAvatar: product.artisanAvatar,
-      clientId,
-      clientName: currentUser?.name || 'Cliente',
-      lastMessage: `Olá! Tenho interesse na peça "${product.title}".`,
-      updatedAt: new Date().toISOString(),
-      unreadCount: 0,
-    };
-
-    setActiveConversation(newConv);
-    if (!conversations.some((c) => c.id === convId)) {
-      setConversations((prev) => [newConv, ...prev]);
-    }
-    navigate('/mensagens');
   };
 
   // Supplier Operations
@@ -630,7 +590,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const addSupplierMaterial = async (mat: Omit<SupplierMaterial, 'id'>) => {
-    const supplierId = supplierCompany.id || '00000000-0000-0000-0000-000000000003';
+    const supplierId = supplierCompany.id || currentUser?.id;
+    if (!supplierId) return;
 
     if (isSupabaseConfigured()) {
       const res = await SuppliersService.createMaterial({
@@ -640,24 +601,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if (res.success && res.data) {
         setSupplierMaterials((prev) => [res.data!, ...prev]);
-        setPendingActionNotice({
-          title: 'Insumo Salvo no Supabase!',
-          description: `O material "${mat.name}" foi registrado com sucesso na tabela supplier_materials.`,
-        });
-        return;
       }
     }
-
-    const newMat: SupplierMaterial = {
-      id: `mat-${Date.now()}`,
-      ...mat,
-      supplierId,
-    };
-    setSupplierMaterials((prev) => [newMat, ...prev]);
-    setPendingActionNotice({
-      title: 'Insumo Cadastrado!',
-      description: `O material "${mat.name}" foi registrado. Conecte o Supabase para sincronização permanente.`,
-    });
   };
 
   const updateSupplierMaterial = async (matId: string, updated: Partial<SupplierMaterial>) => {
@@ -670,7 +615,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Demands & Quotes
   const addDemand = async (demand: Omit<MaterialDemand, 'id' | 'quotesCount' | 'createdAt' | 'status'>) => {
-    const artisanId = currentArtisan?.id || '00000000-0000-0000-0000-000000000001';
+    const artisanId = currentArtisan?.id || currentUser?.id;
+    if (!artisanId) return;
 
     if (isSupabaseConfigured()) {
       const res = await SuppliersService.createDemand({
@@ -679,23 +625,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       if (res.success && res.data) {
         setDemands((prev) => [res.data!, ...prev]);
-        return;
       }
     }
-
-    const newDem: MaterialDemand = {
-      id: `dem-${Date.now()}`,
-      ...demand,
-      artisanId,
-      status: 'open',
-      quotesCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setDemands((prev) => [newDem, ...prev]);
   };
 
   const addSupplierQuote = async (demandId: string, quote: Omit<SupplierQuote, 'id' | 'demandId' | 'createdAt'>) => {
-    const supplierId = supplierCompany.id || '00000000-0000-0000-0000-000000000003';
+    const supplierId = supplierCompany.id || currentUser?.id;
+    if (!supplierId) return;
 
     if (isSupabaseConfigured()) {
       await SuppliersService.submitQuote({
@@ -734,30 +670,32 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       createdAt: new Date().toISOString(),
     };
     setCustomRequests((prev) => [newReq, ...prev]);
-    notifyPendingIntegration('Solicitação Sob Encomenda', `Pedido de ${req.clientName} registrado.`);
   };
 
   // Admin Governance
   const updatePlatformCommission = (percent: number) => {
+    if (currentUser?.role !== 'admin') return;
     setPlatformSettings((prev) => ({ ...prev, commissionPercent: percent }));
   };
 
   const toggleAutoApproveArtisans = () => {
+    if (currentUser?.role !== 'admin') return;
     setPlatformSettings((prev) => ({ ...prev, autoApproveArtisans: !prev.autoApproveArtisans }));
   };
 
   return (
     <MarketplaceContext.Provider
       value={{
-        currentRole,
-        setCurrentRole,
         currentRoute,
         navigate,
+        currentRole,
+        setCurrentRole,
         isSupabaseConnected,
         syncSupabaseData,
         currentUser,
-        sessions,
+        userRole,
         isAuthenticated,
+        sessions,
         login,
         register,
         logout,
@@ -805,14 +743,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         platformSettings,
         updatePlatformCommission,
         toggleAutoApproveArtisans,
-        isArchitectureOpen,
-        setIsArchitectureOpen,
         isAssistedSignupOpen,
         setIsAssistedSignupOpen,
         isOnboardingOpen,
         setIsOnboardingOpen,
-        pendingActionNotice,
-        setPendingActionNotice,
+        isArchitectureOpen,
+        setIsArchitectureOpen,
         notifyPendingIntegration,
       }}
     >
