@@ -4,16 +4,15 @@ import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
 
 export const SupplierCompanyView: React.FC = () => {
-  const { supplierCompany, updateSupplierCompany } = useMarketplace();
+  const { supplierCompany, updateSupplierCompany, notifyPendingIntegration } = useMarketplace();
 
-  const [name, setName] = useState(supplierCompany.name);
-  const [description, setDescription] = useState(supplierCompany.description);
-  const [category, setCategory] = useState(supplierCompany.category);
-  const [location, setLocation] = useState(supplierCompany.location);
-  const [phone, setPhone] = useState(supplierCompany.phone);
-  const [email, setEmail] = useState(supplierCompany.email);
-  const [cnpj, setCnpj] = useState(supplierCompany.cnpj);
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [name, setName] = useState(supplierCompany.name || '');
+  const [description, setDescription] = useState(supplierCompany.description || '');
+  const [category, setCategory] = useState(supplierCompany.category || '');
+  const [location, setLocation] = useState(supplierCompany.location || '');
+  const [phone, setPhone] = useState(supplierCompany.phone || '');
+  const [email, setEmail] = useState(supplierCompany.email || '');
+  const [cnpj, setCnpj] = useState(supplierCompany.cnpj || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +25,10 @@ export const SupplierCompanyView: React.FC = () => {
       email,
       cnpj,
     });
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 4000);
+    notifyPendingIntegration(
+      'Atualização da Empresa Fornecedora',
+      `Dados da empresa "${name || 'Empresa'}" validados no formulário. A persistência dos dados cadastrais será concluída com o Supabase.`
+    );
   };
 
   return (
@@ -41,26 +42,19 @@ export const SupplierCompanyView: React.FC = () => {
         </p>
       </div>
 
-      {savedNotice && (
-        <div className="p-4 bg-[#EDF6F1] text-[#1A543E] rounded-2xl text-xs font-semibold border border-[#C5E3D2] flex items-center gap-2">
-          <Check className="w-4 h-4 shrink-0" />
-          <span>Dados da empresa atualizados com sucesso!</span>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-[#D2E3DB] shadow-xs space-y-6">
         <div className="flex items-center gap-3 pb-4 border-b border-[#E0EFE8]">
           <div className="w-12 h-12 rounded-2xl bg-[#1A543E] text-white flex items-center justify-center font-bold text-lg">
-            F
+            {name ? name.charAt(0).toUpperCase() : 'F'}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-serif font-bold text-base text-[#122B20]">{supplierCompany.name}</h2>
+              <h2 className="font-serif font-bold text-base text-[#122B20]">{name || 'Minha Empresa Fornecedora'}</h2>
               <span className="bg-[#E0EFE8] text-[#1A543E] px-2 py-0.5 rounded-full text-[10px] font-bold">
-                ✓ Homologado
+                {supplierCompany.verified ? '✓ Homologado' : 'Aguardando Banco'}
               </span>
             </div>
-            <p className="text-xs text-[#557567]">CNPJ: {supplierCompany.cnpj}</p>
+            <p className="text-xs text-[#557567]">CNPJ: {cnpj || 'Não informado'}</p>
           </div>
         </div>
 

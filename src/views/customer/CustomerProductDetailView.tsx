@@ -12,9 +12,11 @@ import {
   Truck,
   Check,
   Share2,
+  Package,
 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 interface CustomerProductDetailViewProps {
   productId: string;
@@ -36,8 +38,22 @@ export const CustomerProductDetailView: React.FC<CustomerProductDetailViewProps>
   const [addedNotice, setAddedNotice] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const product = products.find((p) => p.id === productId) || products[0];
-  const artisan = artisans.find((a) => a.id === product.artisanId) || artisans[0];
+  const product = products.find((p) => p.id === productId);
+  const artisan = product ? artisans.find((a) => a.id === product.artisanId) || null : null;
+
+  if (!product) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <EmptyState
+          icon={Package}
+          title="Produto não encontrado"
+          description="A peça que você procura não está cadastrada ou foi removida. Navegue pelo catálogo para conhecer as criações das artesãs brasileiras."
+          actionText="Voltar para a Vitrine de Produtos"
+          onAction={() => navigate('/produtos')}
+        />
+      </div>
+    );
+  }
 
   const handleAdd = () => {
     addToCart(product, quantity, customNote || undefined);
@@ -163,24 +179,37 @@ export const CustomerProductDetailView: React.FC<CustomerProductDetailViewProps>
           </div>
 
           {/* Artisan Profile Mini-Banner */}
-          <div
-            onClick={() => navigate(`/artesa/${artisan.id}`)}
-            className="bg-white p-4 rounded-2xl border border-[#EADBCC] flex items-center justify-between cursor-pointer hover:border-[#8E3E19] transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <img src={artisan.avatarUrl} alt={artisan.name} className="w-12 h-12 rounded-full object-cover border border-[#D9CDBF]" />
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#8C7667] block">Artesã Responsável</span>
-                <h4 className="text-sm font-bold text-[#2D241E]">{artisan.name}</h4>
-                <p className="text-[11px] text-[#8E3E19] font-medium">{artisan.location} · {artisan.studioName}</p>
+          {artisan ? (
+            <div
+              onClick={() => navigate(`/artesa/${artisan.id}`)}
+              className="bg-white p-4 rounded-2xl border border-[#EADBCC] flex items-center justify-between cursor-pointer hover:border-[#8E3E19] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <img src={artisan.avatarUrl || product.artisanAvatar} alt={artisan.name} className="w-12 h-12 rounded-full object-cover border border-[#D9CDBF]" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-[#8C7667] block">Artesã Responsável</span>
+                  <h4 className="text-sm font-bold text-[#2D241E]">{artisan.name}</h4>
+                  <p className="text-[11px] text-[#8E3E19] font-medium">{artisan.location} · {artisan.studioName}</p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-xs font-bold text-[#2D241E] block">★ {artisan.rating}</span>
+                <span className="text-[10px] text-[#8C7667]">Ver Atelier →</span>
               </div>
             </div>
-
-            <div className="text-right">
-              <span className="text-xs font-bold text-[#2D241E] block">★ {artisan.rating}</span>
-              <span className="text-[10px] text-[#8C7667]">Ver Atelier →</span>
+          ) : (
+            <div className="bg-white p-4 rounded-2xl border border-[#EADBCC] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={product.artisanAvatar} alt={product.artisanName} className="w-12 h-12 rounded-full object-cover border border-[#D9CDBF]" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-[#8C7667] block">Artesã Responsável</span>
+                  <h4 className="text-sm font-bold text-[#2D241E]">{product.artisanName}</h4>
+                  <p className="text-[11px] text-[#8E3E19] font-medium">{product.artisanLocation}</p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Customization notes */}
           {product.isCustomizable && (
@@ -244,7 +273,7 @@ export const CustomerProductDetailView: React.FC<CustomerProductDetailViewProps>
               className="w-full bg-white hover:bg-[#FAF6F0] text-[#8E3E19] border border-[#8E3E19]/40 py-3 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Conversar com a Artesã {artisan.name}</span>
+              <span>Conversar com a Artesã {artisan?.name || product.artisanName}</span>
             </button>
           </div>
         </div>

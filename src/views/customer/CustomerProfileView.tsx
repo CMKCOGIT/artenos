@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
-import { User, Check, ShieldCheck, MapPin, Heart } from 'lucide-react';
+import { User, ShieldCheck, MapPin, Heart, Database } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
+import { IntegrationPending } from '../../components/common/IntegrationPending';
+import { addressSchema } from '../../schemas/customer.schema';
 
 export const CustomerProfileView: React.FC = () => {
-  const { customerProfile, updateCustomerProfile } = useMarketplace();
+  const { customerProfile, updateCustomerProfile, notifyPendingIntegration, setIsArchitectureOpen } = useMarketplace();
 
-  const [fullName, setFullName] = useState(customerProfile.fullName);
-  const [email, setEmail] = useState(customerProfile.email);
-  const [phone, setPhone] = useState(customerProfile.phone);
-  const [cpf, setCpf] = useState(customerProfile.cpf);
+  const [fullName, setFullName] = useState(customerProfile.fullName || '');
+  const [email, setEmail] = useState(customerProfile.email || '');
+  const [phone, setPhone] = useState(customerProfile.phone || '');
+  const [cpf, setCpf] = useState(customerProfile.cpf || '');
 
-  const [street, setStreet] = useState(customerProfile.address.street);
-  const [number, setNumber] = useState(customerProfile.address.number);
-  const [complement, setComplement] = useState(customerProfile.address.complement || '');
-  const [neighborhood, setNeighborhood] = useState(customerProfile.address.neighborhood);
-  const [city, setCity] = useState(customerProfile.address.city);
-  const [state, setState] = useState(customerProfile.address.state);
-  const [cep, setCep] = useState(customerProfile.address.cep);
+  const [street, setStreet] = useState(customerProfile.address?.street || '');
+  const [number, setNumber] = useState(customerProfile.address?.number || '');
+  const [complement, setComplement] = useState(customerProfile.address?.complement || '');
+  const [neighborhood, setNeighborhood] = useState(customerProfile.address?.neighborhood || '');
+  const [city, setCity] = useState(customerProfile.address?.city || '');
+  const [state, setState] = useState(customerProfile.address?.state || '');
+  const [cep, setCep] = useState(customerProfile.address?.cep || '');
 
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [showPending, setShowPending] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +39,7 @@ export const CustomerProfileView: React.FC = () => {
         cep,
       },
     });
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 4000);
+    setShowPending(true);
   };
 
   return (
@@ -52,124 +53,154 @@ export const CustomerProfileView: React.FC = () => {
         </p>
       </div>
 
-      {savedNotice && (
-        <div className="p-4 bg-[#EDF6F1] text-[#1A543E] rounded-2xl text-xs font-semibold border border-[#C5E3D2] flex items-center gap-2">
-          <Check className="w-4 h-4 shrink-0" />
-          <span>Perfil e endereço atualizados com sucesso!</span>
-        </div>
+      {showPending && (
+        <IntegrationPending
+          title="Integração de Perfil Pendente"
+          actionName="Atualização de Cadastro"
+          description="Os dados foram validados no front-end. A gravação permanente no banco será concluída após a conexão com o Supabase."
+          onViewArchitecture={() => setIsArchitectureOpen(true)}
+          onClose={() => setShowPending(false)}
+        />
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCC] shadow-xs space-y-6">
-        {/* Personal info */}
-        <div>
-          <h2 className="font-serif font-bold text-sm text-[#2D241E] pb-2 border-b border-[#F2EAE0] mb-4">
-            Dados Pessoais
-          </h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Personal Details */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCC] shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-[#F2EAE0]">
+            <User className="w-4 h-4 text-[#8E3E19]" />
+            <h2 className="font-serif font-bold text-base text-[#2D241E]">Dados Pessoais</h2>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">Nome Completo</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Nome Completo</label>
               <input
                 type="text"
-                required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="Seu nome completo"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">E-mail</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">E-mail</label>
               <input
                 type="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="seu@email.com"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">WhatsApp / Celular</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Telefone WhatsApp</label>
               <input
                 type="tel"
-                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="(00) 00000-0000"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">CPF (Para Nota Fiscal)</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">CPF (opcional)</label>
               <input
                 type="text"
-                required
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="000.000.000-00"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
           </div>
         </div>
 
-        {/* Shipping address */}
-        <div>
-          <h2 className="font-serif font-bold text-sm text-[#2D241E] pb-2 border-b border-[#F2EAE0] mb-4">
-            Endereço Principal de Entrega
-          </h2>
-
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="col-span-2">
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">Rua / Logradouro</label>
-              <input
-                type="text"
-                required
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">Número</label>
-              <input
-                type="text"
-                required
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
-              />
-            </div>
+        {/* Address */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCC] shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-[#F2EAE0]">
+            <MapPin className="w-4 h-4 text-[#8E3E19]" />
+            <h2 className="font-serif font-bold text-base text-[#2D241E]">Endereço Padrão de Entrega</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">Complemento</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">CEP</label>
+              <input
+                type="text"
+                value={cep}
+                onChange={(e) => setCep(e.target.value)}
+                placeholder="00000-000"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Rua / Logradouro</label>
+              <input
+                type="text"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder="Rua ou Avenida"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Número</label>
+              <input
+                type="text"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                placeholder="123"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+              />
+            </div>
+
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Complemento</label>
               <input
                 type="text"
                 value={complement}
                 onChange={(e) => setComplement(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="Apto 42"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">Bairro</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Bairro</label>
               <input
                 type="text"
-                required
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                placeholder="Bairro"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-semibold text-[#5C4A3E] mb-1">CEP</label>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Cidade</label>
               <input
                 type="text"
-                required
-                value={cep}
-                onChange={(e) => setCep(e.target.value)}
-                className="w-full bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Cidade"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#3D2E24] mb-1">Estado (UF)</label>
+              <input
+                type="text"
+                maxLength={2}
+                value={state}
+                onChange={(e) => setState(e.target.value.toUpperCase())}
+                placeholder="SP"
+                className="w-full bg-[#FAF7F2] border border-[#D9CDBF] rounded-xl px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
           </div>
@@ -177,7 +208,7 @@ export const CustomerProfileView: React.FC = () => {
 
         <button
           type="submit"
-          className="w-full bg-[#8E3E19] hover:bg-[#733113] text-white py-3 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer"
+          className="w-full bg-[#8E3E19] hover:bg-[#733113] text-white text-xs font-bold py-3.5 rounded-xl cursor-pointer transition-colors shadow-sm"
         >
           Salvar Dados do Perfil
         </button>

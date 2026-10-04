@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Product,
   Artisan,
@@ -28,42 +28,61 @@ import {
   initialCustomerProfile,
   initialPlatformSettings,
 } from '../data/mockData';
-import { craftPlaceholders } from '../utils/craftAssets';
+import {
+  ProductsService,
+  ArtisansService,
+  SuppliersService,
+  OrdersService,
+  ChatService,
+  AuthService,
+  CustomersService,
+} from '../services';
+import { isSupabaseConfigured, testSupabaseConnection } from '../lib/supabase/client';
+
+export interface PendingActionNotice {
+  title: string;
+  description: string;
+  validatedDetails?: string;
+}
 
 interface MarketplaceContextType {
-  // Navigation & Authentication
+  // Navigation & Current Role
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
   currentRoute: string;
   navigate: (route: string) => void;
 
+  // Supabase Live Connection
+  isSupabaseConnected: boolean;
+  syncSupabaseData: () => Promise<void>;
+
   // Multi-profile Auth State
   currentUser: AuthUser | null;
   sessions: Record<UserRole, AuthUser | null>;
   isAuthenticated: boolean;
-  login: (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => { success: boolean; error?: string };
-  register: (payload: RegisterPayload) => { success: boolean; error?: string };
-  logout: (role?: UserRole) => void;
+  login: (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string }>;
+  logout: (role?: UserRole) => Promise<void>;
 
   // Products
   products: Product[];
   selectedProduct: Product | null;
   setSelectedProduct: (p: Product | null) => void;
-  addProduct: (product: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => void;
-  updateProduct: (productId: string, updated: Partial<Product>) => void;
-  updateProductStock: (productId: string, newStock: number) => void;
-  deleteProduct: (productId: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => Promise<void>;
+  updateProduct: (productId: string, updated: Partial<Product>) => Promise<void>;
+  updateProductStock: (productId: string, newStock: number) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
 
   // Artisans
   artisans: Artisan[];
-  currentArtisan: Artisan;
-  updateArtisanProfile: (updated: Partial<Artisan>) => void;
-  approveArtisan: (artisanId: string) => void;
+  currentArtisan: Artisan | null;
+  updateArtisanProfile: (updated: Partial<Artisan>) => Promise<void>;
+  approveArtisan: (artisanId: string) => Promise<void>;
 
   // Customer Profile & Favorites
   customerProfile: CustomerProfile;
-  updateCustomerProfile: (updated: Partial<CustomerProfile>) => void;
-  toggleFavorite: (productId: string) => void;
+  updateCustomerProfile: (updated: Partial<CustomerProfile>) => Promise<void>;
+  toggleFavorite: (productId: string) => Promise<void>;
   isFavorite: (productId: string) => boolean;
 
   // Cart & Checkout
@@ -75,55 +94,57 @@ interface MarketplaceContextType {
 
   // Orders
   orders: Order[];
-  createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>) => Order;
-  updateOrderStatus: (orderId: string, status: Order['status'], trackingCode?: string) => void;
+  createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>) => Promise<Order | null>;
+  updateOrderStatus: (orderId: string, status: Order['status'], trackingCode?: string) => Promise<void>;
 
   // Chat
   conversations: Conversation[];
   activeConversation: Conversation | null;
   setActiveConversation: (conv: Conversation | null) => void;
   messages: Record<string, ChatMessage[]>;
-  sendMessage: (conversationId: string, content: string, attachments?: string[]) => void;
-  startChatWithArtisan: (product: Product) => void;
+  sendMessage: (conversationId: string, content: string, attachments?: string[]) => Promise<void>;
+  startChatWithArtisan: (product: Product) => Promise<void>;
 
   // Supplier Module
   supplierCompany: SupplierCompany;
-  updateSupplierCompany: (updated: Partial<SupplierCompany>) => void;
+  updateSupplierCompany: (updated: Partial<SupplierCompany>) => Promise<void>;
   supplierMaterials: SupplierMaterial[];
-  addSupplierMaterial: (mat: Omit<SupplierMaterial, 'id'>) => void;
-  updateSupplierMaterial: (matId: string, updated: Partial<SupplierMaterial>) => void;
-  deleteSupplierMaterial: (matId: string) => void;
+  addSupplierMaterial: (mat: Omit<SupplierMaterial, 'id'>) => Promise<void>;
+  updateSupplierMaterial: (matId: string, updated: Partial<SupplierMaterial>) => Promise<void>;
+  deleteSupplierMaterial: (matId: string) => Promise<void>;
 
   // Demands & Quotes
   demands: MaterialDemand[];
-  addDemand: (demand: Omit<MaterialDemand, 'id' | 'quotesCount' | 'createdAt' | 'status'>) => void;
+  addDemand: (demand: Omit<MaterialDemand, 'id' | 'quotesCount' | 'createdAt' | 'status'>) => Promise<void>;
   quotes: Record<string, SupplierQuote[]>;
-  addSupplierQuote: (demandId: string, quote: Omit<SupplierQuote, 'id' | 'demandId' | 'createdAt'>) => void;
+  addSupplierQuote: (demandId: string, quote: Omit<SupplierQuote, 'id' | 'demandId' | 'createdAt'>) => Promise<void>;
 
-  // Custom Requests
+  // Custom Piece Commissions
   customRequests: CustomPieceRequest[];
   submitCustomRequest: (req: Omit<CustomPieceRequest, 'id' | 'createdAt' | 'status'>) => void;
 
-  // Admin & Platform Settings
+  // Platform Governance Settings
   platformSettings: PlatformSettings;
   updatePlatformCommission: (percent: number) => void;
   toggleAutoApproveArtisans: () => void;
 
-  // Modals
+  // Modals & Notices
   isArchitectureOpen: boolean;
   setIsArchitectureOpen: (open: boolean) => void;
   isAssistedSignupOpen: boolean;
   setIsAssistedSignupOpen: (open: boolean) => void;
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
+
+  pendingActionNotice: PendingActionNotice | null;
+  setPendingActionNotice: (notice: PendingActionNotice | null) => void;
+  notifyPendingIntegration: (actionName: string, validatedDetails?: string) => void;
 }
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'artenos_marketplace_v2';
-
 export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Sync route with URL hash for browser history and deep linking
+  // Navigation sync with Hash
   const getInitialRoute = () => {
     const hash = window.location.hash.replace(/^#/, '');
     return hash || '/';
@@ -173,7 +194,6 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Listen to window hash change
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#/, '') || '/';
@@ -188,425 +208,265 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Multi-profile Authentication Sessions
-  const [sessions, setSessions] = useState<Record<UserRole, AuthUser | null>>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_sessions`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return {
-      customer: null,
-      artisan: null,
-      supplier: null,
-      admin: null,
-    };
+  // Supabase Connection Status
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(isSupabaseConfigured());
+
+  // Authentication Sessions
+  const [sessions, setSessions] = useState<Record<UserRole, AuthUser | null>>({
+    customer: null,
+    artisan: null,
+    supplier: null,
+    admin: null,
   });
 
-  const currentUser = sessions[currentRole] || null;
+  const currentUser = sessions[currentRole];
   const isAuthenticated = Boolean(currentUser);
 
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_products`);
-    return saved ? JSON.parse(saved) : initialProducts;
-  });
-
-  const [artisans, setArtisans] = useState<Artisan[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_artisans`);
-    return saved ? JSON.parse(saved) : initialArtisans;
-  });
-
-  const [activeArtisanId, setActiveArtisanId] = useState<string>(() => {
-    return localStorage.getItem(`${LOCAL_STORAGE_KEY}_active_artisan`) || initialArtisans[0].id;
-  });
-  const currentArtisan = artisans.find((a) => a.id === activeArtisanId) || artisans[0];
-
-  const [customerProfile, setCustomerProfile] = useState<CustomerProfile>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_profile`);
-    return saved ? JSON.parse(saved) : initialCustomerProfile;
-  });
-
-  const [supplierCompany, setSupplierCompany] = useState<SupplierCompany>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_company`);
-    return saved ? JSON.parse(saved) : initialSupplierCompany;
-  });
-
-  // Auth Operations
-  const login = (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => {
-    const { email, role } = credentials;
-    if (!email || !email.includes('@')) {
-      return { success: false, error: 'Por favor, informe um endereço de e-mail válido.' };
-    }
-
-    let user: AuthUser;
-
-    if (role === 'customer') {
-      const isKaike = email.toLowerCase().includes('kaike');
-      user = {
-        id: 'cust-kaike',
-        name: isKaike ? 'Kaike Elias' : (email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())),
-        email,
-        role: 'customer',
-        phone: customerProfile.phone || '(11) 98765-4321',
-        cpf: customerProfile.cpf || '123.456.789-00',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      };
-      setCustomerProfile((prev) => ({
-        ...prev,
-        fullName: user.name,
-        email: user.email,
-      }));
-    } else if (role === 'artisan') {
-      const existing = artisans.find((a) => a.name.toLowerCase().includes(email.split('@')[0].toLowerCase())) || currentArtisan;
-      user = {
-        id: existing.id,
-        name: existing.name,
-        email,
-        role: 'artisan',
-        studioName: existing.studioName,
-        specialties: existing.specialties,
-        location: existing.location,
-        pixKey: existing.pixKey,
-        avatarUrl: existing.avatarUrl,
-        bio: existing.bio,
-      };
-      setActiveArtisanId(existing.id);
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_active_artisan`, existing.id);
-    } else if (role === 'supplier') {
-      user = {
-        id: supplierCompany.id,
-        name: 'Roberto Guimarães (Comercial)',
-        email,
-        role: 'supplier',
-        companyName: supplierCompany.name,
-        cnpj: supplierCompany.cnpj,
-        category: supplierCompany.category,
-        location: supplierCompany.location,
-      };
-    } else {
-      user = {
-        id: 'admin-1',
-        name: 'Superusuário Artenós',
-        email,
-        role: 'admin',
-      };
-    }
-
-    setSessions((prev) => {
-      const updated = { ...prev, [role]: user };
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_sessions`, JSON.stringify(updated));
-      return updated;
-    });
-
-    return { success: true };
-  };
-
-  const register = (payload: RegisterPayload) => {
-    if (!payload.email || !payload.email.includes('@')) {
-      return { success: false, error: 'Por favor, informe um endereço de e-mail válido.' };
-    }
-    if (!payload.name || payload.name.trim().length < 2) {
-      return { success: false, error: 'Por favor, preencha o seu nome completo ou razão social.' };
-    }
-
-    const newId = `${payload.role}-${Date.now()}`;
-    const user: AuthUser = {
-      id: newId,
-      name: payload.name,
-      email: payload.email,
-      role: payload.role,
-      phone: payload.phone,
-      cpf: payload.cpf,
-      studioName: payload.studioName,
-      specialties: payload.specialties,
-      location: payload.location,
-      pixKey: payload.pixKey,
-      bio: payload.bio,
-      companyName: payload.companyName,
-      cnpj: payload.cnpj,
-      category: payload.category,
-      avatarUrl: payload.role === 'artisan'
-        ? craftPlaceholders.artisan_clara
-        : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-    };
-
-    if (payload.role === 'artisan') {
-      const newArtisan: Artisan = {
-        id: newId,
-        name: payload.name,
-        studioName: payload.studioName || `Ateliê ${payload.name}`,
-        bio: payload.bio || 'Mestra artesã cadastrada na plataforma Artenós.',
-        story: payload.bio || 'Criando peças manuais exclusivas com técnicas tradicionais e afeto.',
-        location: payload.location || 'Brasil',
-        specialties: payload.specialties && payload.specialties.length > 0 ? payload.specialties : ['Crochê & Amigurumi'],
-        avatarUrl: craftPlaceholders.artisan_clara,
-        rating: 5.0,
-        totalSales: 0,
-        phone: payload.phone || '(11) 98765-4321',
-        instagram: `@atelie.${payload.name.toLowerCase().replace(/\s+/g, '')}`,
-        featuredQuote: 'Artesanato com alma e memória viva.',
-        status: 'active',
-        pixKey: payload.pixKey || `${payload.email}`,
-        revenueCents: 0,
-      };
-
-      setArtisans((prev) => {
-        const next = [newArtisan, ...prev];
-        localStorage.setItem(`${LOCAL_STORAGE_KEY}_artisans`, JSON.stringify(next));
-        return next;
-      });
-      setActiveArtisanId(newArtisan.id);
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_active_artisan`, newArtisan.id);
-    } else if (payload.role === 'customer') {
-      setCustomerProfile((prev) => {
-        const next = {
-          ...prev,
-          fullName: payload.name,
-          email: payload.email,
-          phone: payload.phone || prev.phone,
-          cpf: payload.cpf || prev.cpf,
-        };
-        localStorage.setItem(`${LOCAL_STORAGE_KEY}_profile`, JSON.stringify(next));
-        return next;
-      });
-    } else if (payload.role === 'supplier') {
-      setSupplierCompany((prev) => {
-        const next = {
-          ...prev,
-          name: payload.companyName || payload.name,
-          email: payload.email,
-          phone: payload.phone || prev.phone,
-          cnpj: payload.cnpj || prev.cnpj,
-          category: payload.category || prev.category,
-          location: payload.location || prev.location,
-        };
-        localStorage.setItem(`${LOCAL_STORAGE_KEY}_company`, JSON.stringify(next));
-        return next;
-      });
-    }
-
-    setSessions((prev) => {
-      const updated = { ...prev, [payload.role]: user };
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_sessions`, JSON.stringify(updated));
-      return updated;
-    });
-
-    return { success: true };
-  };
-
-  const logout = (role?: UserRole) => {
-    const targetRole = role || currentRole;
-    setSessions((prev) => {
-      const updated = { ...prev, [targetRole]: null };
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_sessions`, JSON.stringify(updated));
-      return updated;
-    });
-
-    if (targetRole === 'customer') {
-      navigate('/login');
-    } else if (targetRole === 'artisan') {
-      navigate('/artesa/login');
-    } else if (targetRole === 'supplier') {
-      navigate('/fornecedor/login');
-    } else if (targetRole === 'admin') {
-      navigate('/admin/login');
-    }
-  };
-
-
-  const [supplierMaterials, setSupplierMaterials] = useState<SupplierMaterial[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_materials`);
-    return saved ? JSON.parse(saved) : initialSuppliersMaterials;
-  });
-
-  const [demands, setDemands] = useState<MaterialDemand[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_demands`);
-    return saved ? JSON.parse(saved) : initialMaterialDemands;
-  });
-
-  const [quotes, setQuotes] = useState<Record<string, SupplierQuote[]>>({
-    'dem-1': [
-      {
-        id: 'q-1',
-        demandId: 'dem-1',
-        supplierId: 'sup-1',
-        supplierName: 'Fios do Nordeste Ltda',
-        supplierContact: '(81) 3721-9988',
-        priceCents: 11000,
-        shippingCents: 1500,
-        shippingDays: 3,
-        notes: 'Algodão mercerizado azul celeste em 4 rolos lacrados. Lote #LT-2026-F08.',
-        status: 'sent',
-        createdAt: 'Hoje às 09:15',
-      },
-    ],
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_orders`);
-    return saved ? JSON.parse(saved) : initialOrders;
-  });
-
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_cart`);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_convs`);
-    return saved ? JSON.parse(saved) : initialConversations;
-  });
-
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({
-    'conv-1': [
-      {
-        id: 'm-1',
-        conversationId: 'conv-1',
-        senderId: 'artisan-1',
-        senderName: 'Maria das Dores',
-        senderRole: 'artisan',
-        content: 'Olá querido(a)! Seja muito bem-vindo(a) ao meu atelier virtual. Como posso ajudar com a girafinha?',
-        timestamp: '10:30',
-        status: 'read',
-      },
-      {
-        id: 'm-2',
-        conversationId: 'conv-1',
-        senderId: 'client-current',
-        senderName: 'Kaike Elias (Você)',
-        senderRole: 'customer',
-        content: 'Oi Maria! Adorei a peça! É possível fazer com um lacinho verde oliva no pescocinho dela?',
-        timestamp: '10:42',
-        status: 'read',
-      },
-      {
-        id: 'm-3',
-        conversationId: 'conv-1',
-        senderId: 'artisan-1',
-        senderName: 'Maria das Dores',
-        senderRole: 'artisan',
-        content: 'Com certeza! Tenho um fio de algodão verde oliva perfeito para esse detalhe. Posso tecer com muito carinho para você.',
-        timestamp: '10:45',
-        status: 'read',
-      },
-    ],
-  });
-
-  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_settings`);
-    return saved ? JSON.parse(saved) : initialPlatformSettings;
-  });
-
-  const [customRequests, setCustomRequests] = useState<CustomPieceRequest[]>([]);
+  // Data Collections (initialized with clean state)
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const [artisans, setArtisans] = useState<Artisan[]>(initialArtisans);
+  const [currentArtisan, setCurrentArtisan] = useState<Artisan | null>(null);
+
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile>(initialCustomerProfile);
+  const [supplierCompany, setSupplierCompany] = useState<SupplierCompany>(initialSupplierCompany);
+
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
+
+  const [supplierMaterials, setSupplierMaterials] = useState<SupplierMaterial[]>(initialSuppliersMaterials);
+  const [demands, setDemands] = useState<MaterialDemand[]>(initialMaterialDemands);
+  const [quotes, setQuotes] = useState<Record<string, SupplierQuote[]>>({});
+  const [customRequests, setCustomRequests] = useState<CustomPieceRequest[]>([]);
+
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(initialPlatformSettings);
 
   // Modals
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
   const [isAssistedSignupOpen, setIsAssistedSignupOpen] = useState(false);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
-    // Open on initial visit if user hasn't seen it yet
-    return !localStorage.getItem('artenos_onboarding_completed_v1');
-  });
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [pendingActionNotice, setPendingActionNotice] = useState<PendingActionNotice | null>(null);
 
-  // Sync to local storage
+  const notifyPendingIntegration = (actionName: string, validatedDetails?: string) => {
+    setPendingActionNotice({
+      title: isSupabaseConfigured() ? 'Ação Processada' : 'Conexão Supabase Disponível',
+      description: isSupabaseConfigured()
+        ? `${actionName} foi sincronizado com o Supabase.`
+        : `${actionName} validado no front-end. Conecte sua URL e Chave do Supabase para persistência em tempo real.`,
+      validatedDetails,
+    });
+  };
+
+  // Sync / Load live data from Supabase
+  const syncSupabaseData = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setIsSupabaseConnected(false);
+      return;
+    }
+
+    try {
+      const ping = await testSupabaseConnection();
+      setIsSupabaseConnected(ping.success);
+
+      if (ping.success) {
+        const [prods, arts, mats, dems, ords, convs] = await Promise.all([
+          ProductsService.getProducts(),
+          ArtisansService.getArtisans(),
+          SuppliersService.getMaterials(),
+          SuppliersService.getDemands(),
+          OrdersService.getOrders(),
+          ChatService.getConversations(),
+        ]);
+
+        if (prods.length > 0) setProducts(prods);
+        if (arts.length > 0) {
+          setArtisans(arts);
+          if (!currentArtisan) setCurrentArtisan(arts[0]);
+        }
+        if (mats.length > 0) setSupplierMaterials(mats);
+        if (dems.length > 0) setDemands(dems);
+        if (ords.length > 0) setOrders(ords);
+        if (convs.length > 0) setConversations(convs);
+
+        // Verifica sessão ativa
+        const user = await AuthService.getCurrentUser();
+        if (user) {
+          setSessions((prev) => ({ ...prev, [user.role]: user }));
+        }
+      }
+    } catch (err) {
+      console.warn('[syncSupabaseData] Warning:', err);
+    }
+  }, [currentArtisan]);
+
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_products`, JSON.stringify(products));
-  }, [products]);
+    syncSupabaseData();
+  }, [syncSupabaseData]);
 
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_artisans`, JSON.stringify(artisans));
-  }, [artisans]);
+  // Auth Operations
+  const login = async (credentials: { email: string; password?: string; role: UserRole; rememberMe?: boolean }) => {
+    if (isSupabaseConfigured()) {
+      const res = await AuthService.login(credentials);
+      if (res.success && res.user) {
+        setSessions((prev) => ({ ...prev, [credentials.role]: res.user! }));
+        return { success: true };
+      }
+      return { success: false, error: res.error || 'Credenciais inválidas no Supabase.' };
+    }
 
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_cart`, JSON.stringify(cart));
-  }, [cart]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_orders`, JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_materials`, JSON.stringify(supplierMaterials));
-  }, [supplierMaterials]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_demands`, JSON.stringify(demands));
-  }, [demands]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_profile`, JSON.stringify(customerProfile));
-  }, [customerProfile]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_company`, JSON.stringify(supplierCompany));
-  }, [supplierCompany]);
-
-  useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY}_settings`, JSON.stringify(platformSettings));
-  }, [platformSettings]);
-
-  const addProduct = (prodData: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => {
-    const newProduct: Product = {
-      ...prodData,
-      id: `prod-${Date.now()}`,
-      slug: prodData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      rating: 5.0,
-      reviewsCount: 1,
+    // Fallback demo session quando Supabase ainda não estiver conectado
+    const demoUser: AuthUser = {
+      id: `user-${Date.now()}`,
+      name: credentials.email.split('@')[0],
+      email: credentials.email,
+      role: credentials.role,
     };
-    setProducts((prev) => [newProduct, ...prev]);
+    setSessions((prev) => ({ ...prev, [credentials.role]: demoUser }));
+    return { success: true };
   };
 
-  const updateProduct = (productId: string, updated: Partial<Product>) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, ...updated } : p))
-    );
+  const register = async (payload: RegisterPayload) => {
+    if (isSupabaseConfigured()) {
+      const res = await AuthService.register(payload);
+      if (res.success && res.user) {
+        setSessions((prev) => ({ ...prev, [payload.role]: res.user! }));
+        return { success: true };
+      }
+      return { success: false, error: res.error || 'Erro ao registrar no Supabase.' };
+    }
+
+    const demoUser: AuthUser = {
+      id: `user-${Date.now()}`,
+      name: payload.name,
+      email: payload.email,
+      role: payload.role,
+      studioName: payload.studioName,
+      location: payload.location,
+    };
+    setSessions((prev) => ({ ...prev, [payload.role]: demoUser }));
+    return { success: true };
   };
 
-  const updateProductStock = (productId: string, newStock: number) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, stock: Math.max(0, newStock) } : p))
-    );
+  const logout = async (role?: UserRole) => {
+    const targetRole = role || currentRole;
+    await AuthService.logout();
+    setSessions((prev) => ({ ...prev, [targetRole]: null }));
   };
 
-  const deleteProduct = (productId: string) => {
+  // Product Operations
+  const addProduct = async (productData: Omit<Product, 'id' | 'slug' | 'rating' | 'reviewsCount'>) => {
+    const artisanId = currentArtisan?.id || sessions.artisan?.id || '00000000-0000-0000-0000-000000000001';
+
+    if (isSupabaseConfigured()) {
+      const res = await ProductsService.createProduct({
+        ...productData,
+        artisanId,
+      });
+
+      if (res.success && res.data) {
+        setProducts((prev) => [res.data!, ...prev]);
+        setPendingActionNotice({
+          title: 'Produto Salvo no Supabase!',
+          description: `A peça "${productData.title}" foi gravada com sucesso nas tabelas products e inventory do seu banco de dados.`,
+        });
+        return;
+      }
+    }
+
+    // Adiciona na memória local caso Supabase não esteja conectado
+    const newProd: Product = {
+      id: `prod-${Date.now()}`,
+      slug: productData.title.toLowerCase().replace(/\s+/g, '-'),
+      rating: 5.0,
+      reviewsCount: 0,
+      ...productData,
+      artisanId,
+      artisanName: currentArtisan?.name || 'Artesã',
+      artisanLocation: currentArtisan?.location || 'Brasil',
+      artisanAvatar: currentArtisan?.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
+      createdAt: new Date().toISOString(),
+    };
+    setProducts((prev) => [newProd, ...prev]);
+    setPendingActionNotice({
+      title: 'Produto Cadastrado!',
+      description: `A peça "${productData.title}" foi adicionada. Conecte suas credenciais do Supabase para persistir permanentemente.`,
+    });
+  };
+
+  const updateProduct = async (productId: string, updated: Partial<Product>) => {
+    if (isSupabaseConfigured()) {
+      await ProductsService.updateProduct(productId, updated);
+    }
+    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, ...updated } : p)));
+  };
+
+  const updateProductStock = async (productId: string, newStock: number) => {
+    if (isSupabaseConfigured()) {
+      await ProductsService.updateProduct(productId, { stock: newStock });
+    }
+    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, stock: newStock } : p)));
+  };
+
+  const deleteProduct = async (productId: string) => {
+    if (isSupabaseConfigured()) {
+      await ProductsService.deleteProduct(productId);
+    }
     setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
-  const updateArtisanProfile = (updated: Partial<Artisan>) => {
+  // Artisan Profile Operations
+  const updateArtisanProfile = async (updated: Partial<Artisan>) => {
+    if (currentArtisan && isSupabaseConfigured()) {
+      await ArtisansService.updateProfile(currentArtisan.id, updated);
+    }
+    setCurrentArtisan((prev) => (prev ? { ...prev, ...updated } : null));
     setArtisans((prev) =>
-      prev.map((a) => (a.id === currentArtisan.id ? { ...a, ...updated } : a))
+      prev.map((a) => (a.id === currentArtisan?.id ? { ...a, ...updated } : a))
     );
   };
 
-  const approveArtisan = (artisanId: string) => {
+  const approveArtisan = async (artisanId: string) => {
+    if (isSupabaseConfigured()) {
+      await ArtisansService.approveArtisan(artisanId);
+    }
     setArtisans((prev) =>
       prev.map((a) => (a.id === artisanId ? { ...a, status: 'active' } : a))
     );
   };
 
-  const updateCustomerProfile = (updated: Partial<CustomerProfile>) => {
+  // Customer Profile Operations
+  const updateCustomerProfile = async (updated: Partial<CustomerProfile>) => {
+    if (sessions.customer?.id && isSupabaseConfigured()) {
+      await CustomersService.updateProfile(sessions.customer.id, updated);
+    }
     setCustomerProfile((prev) => ({ ...prev, ...updated }));
   };
 
-  const toggleFavorite = (productId: string) => {
+  const toggleFavorite = async (productId: string) => {
+    if (sessions.customer?.id && isSupabaseConfigured()) {
+      await CustomersService.toggleFavorite(sessions.customer.id, productId);
+    }
     setCustomerProfile((prev) => {
-      const exists = prev.favoriteProductIds.includes(productId);
-      const newFavorites = exists
-        ? prev.favoriteProductIds.filter((id) => id !== productId)
-        : [...prev.favoriteProductIds, productId];
-      return { ...prev, favoriteProductIds: newFavorites };
+      const current = prev.favoriteProductIds || [];
+      const exists = current.includes(productId);
+      return {
+        ...prev,
+        favoriteProductIds: exists ? current.filter((id) => id !== productId) : [...current, productId],
+      };
     });
   };
 
   const isFavorite = (productId: string) => {
-    return customerProfile.favoriteProductIds.includes(productId);
+    return customerProfile.favoriteProductIds?.includes(productId) || false;
   };
 
-  const addToCart = (product: Product, quantity = 1, customizationNotes?: string) => {
+  // Cart Operations
+  const addToCart = (product: Product, quantity = 1, customizationNotes = '') => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -630,197 +490,230 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      )
+      prev.map((item) => (item.product.id === productId ? { ...item, quantity } : item))
     );
   };
 
   const clearCart = () => setCart([]);
 
-  const createOrder = (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>): Order => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
+  // Order Operations
+  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>): Promise<Order | null> => {
+    if (isSupabaseConfigured()) {
+      const res = await OrdersService.createOrder({
+        customerId: sessions.customer?.id,
+        clientName: orderData.clientName,
+        clientEmail: orderData.clientEmail,
+        clientPhone: orderData.clientPhone,
+        shippingAddress: orderData.clientAddress,
+        items: cart,
+        subtotalCents: orderData.subtotalCents,
+        shippingCents: orderData.shippingCents,
+        shippingMethod: orderData.shippingMethod,
+        totalCents: orderData.totalCents,
+        paymentMethod: orderData.paymentMethod,
+        platformFeePercent: platformSettings.commissionPercent,
+      });
+
+      if (res.success && res.order) {
+        setOrders((prev) => [res.order!, ...prev]);
+        clearCart();
+        return res.order;
+      }
+    }
+
+    // Fallback local memory
     const newOrder: Order = {
-      ...orderData,
       id: `ord-${Date.now()}`,
-      orderNumber: `#ART-${randomNum}`,
-      createdAt: new Date().toLocaleDateString('pt-BR'),
+      orderNumber: `ART-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`,
+      createdAt: new Date().toISOString(),
+      ...orderData,
     };
-
     setOrders((prev) => [newOrder, ...prev]);
-
-    // Decrease stock for ordered products
-    newOrder.items.forEach((item) => {
-      updateProductStock(item.productId, 0);
-    });
-
     clearCart();
-
-    // Update platform GMV
-    setPlatformSettings((prev) => ({
-      ...prev,
-      totalGMVCents: prev.totalGMVCents + newOrder.totalCents,
-      totalTransactionsCount: prev.totalTransactionsCount + 1,
-    }));
-
     return newOrder;
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['status'], trackingCode?: string) => {
+  const updateOrderStatus = async (orderId: string, status: Order['status'], trackingCode?: string) => {
+    if (isSupabaseConfigured()) {
+      await OrdersService.updateOrderStatus(orderId, status, trackingCode);
+    }
     setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status,
-              trackingCode: trackingCode || o.trackingCode,
-              updatedAt: new Date().toLocaleDateString('pt-BR'),
-            }
-          : o
-      )
+      prev.map((o) => (o.id === orderId ? { ...o, status, trackingCode: trackingCode || o.trackingCode } : o))
     );
   };
 
-  const startChatWithArtisan = (product: Product) => {
-    const existing = conversations.find(
-      (c) => c.artisanId === product.artisanId && c.productId === product.id
-    );
+  // Chat Operations
+  const sendMessage = async (conversationId: string, content: string) => {
+    const senderId = currentUser?.id || '00000000-0000-0000-0000-000000000001';
 
-    if (existing) {
-      setActiveConversation(existing);
-    } else {
-      const newConv: Conversation = {
-        id: `conv-${Date.now()}`,
-        productId: product.id,
-        productTitle: product.title,
-        productPriceCents: product.priceCents,
-        productImg: product.imageUrl,
-        artisanId: product.artisanId,
-        artisanName: product.artisanName,
-        artisanAvatar: product.artisanAvatar,
-        clientId: customerProfile.id,
-        clientName: customerProfile.fullName,
-        lastMessage: `Olá ${product.artisanName}, tenho uma dúvida sobre ${product.title}...`,
-        updatedAt: 'Agora',
-        unreadCount: 0,
-      };
-
-      setConversations((prev) => [newConv, ...prev]);
-      setMessages((prev) => ({
-        ...prev,
-        [newConv.id]: [
-          {
-            id: `m-init-${Date.now()}`,
-            conversationId: newConv.id,
-            senderId: product.artisanId,
-            senderName: product.artisanName,
-            senderRole: 'artisan',
-            content: `Olá ${customerProfile.fullName}! Fico feliz pelo seu interesse em "${product.title}". Posso tirar qualquer dúvida sobre medidas, cores ou prazo para você!`,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            status: 'delivered',
-          },
-        ],
-      }));
-      setActiveConversation(newConv);
+    if (isSupabaseConfigured()) {
+      const res = await ChatService.sendMessage(conversationId, senderId, content);
+      if (res.success && res.message) {
+        setMessages((prev) => ({
+          ...prev,
+          [conversationId]: [...(prev[conversationId] || []), res.message!],
+        }));
+        setConversations((prev) =>
+          prev.map((c) => (c.id === conversationId ? { ...c, lastMessage: content, updatedAt: new Date().toISOString() } : c))
+        );
+        return;
+      }
     }
 
-    if (currentRole === 'artisan') {
-      navigate('/artesa/mensagens');
-    } else {
-      navigate('/mensagens');
-    }
-  };
-
-  const sendMessage = (conversationId: string, content: string, attachments?: string[]) => {
-    if (!content.trim() && (!attachments || attachments.length === 0)) return;
-
-    const isArtisanRole = currentRole === 'artisan';
-
-    const newMessage: ChatMessage = {
-      id: `m-${Date.now()}`,
+    const localMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
       conversationId,
-      senderId: isArtisanRole ? currentArtisan.id : customerProfile.id,
-      senderName: isArtisanRole ? currentArtisan.name : customerProfile.fullName,
-      senderRole: isArtisanRole ? 'artisan' : 'customer',
+      senderId,
+      senderName: currentUser?.name || 'Eu',
+      senderRole: currentRole,
       content,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      attachments,
+      timestamp: new Date().toISOString(),
       status: 'sent',
     };
 
     setMessages((prev) => ({
       ...prev,
-      [conversationId]: [...(prev[conversationId] || []), newMessage],
+      [conversationId]: [...(prev[conversationId] || []), localMsg],
     }));
 
     setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conversationId
-          ? { ...c, lastMessage: content, updatedAt: 'Agora' }
-          : c
-      )
+      prev.map((c) => (c.id === conversationId ? { ...c, lastMessage: content, updatedAt: new Date().toISOString() } : c))
     );
-
-    // Auto reply simulation if customer sent
-    if (!isArtisanRole) {
-      setTimeout(() => {
-        const reply: ChatMessage = {
-          id: `m-reply-${Date.now()}`,
-          conversationId,
-          senderId: 'artisan-1',
-          senderName: 'Maria das Dores',
-          senderRole: 'artisan',
-          content: 'Perfeito! Anotei todos os detalhes aqui na minha prancheta de encomendas. Ficará linda!',
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          status: 'delivered',
-        };
-        setMessages((prev) => ({
-          ...prev,
-          [conversationId]: [...(prev[conversationId] || []), reply],
-        }));
-      }, 1600);
-    }
   };
 
-  const updateSupplierCompany = (updated: Partial<SupplierCompany>) => {
+  const startChatWithArtisan = async (product: Product) => {
+    const clientId = sessions.customer?.id || '00000000-0000-0000-0000-000000000002';
+
+    if (isSupabaseConfigured()) {
+      const res = await ChatService.getOrCreateConversation(clientId, product.artisanId, product);
+      if (res.success && res.conversation) {
+        setActiveConversation(res.conversation);
+        if (!conversations.some((c) => c.id === res.conversation!.id)) {
+          setConversations((prev) => [res.conversation!, ...prev]);
+        }
+        navigate('/mensagens');
+        return;
+      }
+    }
+
+    // Local fallback
+    const convId = `conv-${product.id}`;
+    const newConv: Conversation = {
+      id: convId,
+      productId: product.id,
+      productTitle: product.title,
+      productPriceCents: product.priceCents,
+      productImg: product.imageUrl,
+      artisanId: product.artisanId,
+      artisanName: product.artisanName,
+      artisanAvatar: product.artisanAvatar,
+      clientId,
+      clientName: currentUser?.name || 'Cliente',
+      lastMessage: `Olá! Tenho interesse na peça "${product.title}".`,
+      updatedAt: new Date().toISOString(),
+      unreadCount: 0,
+    };
+
+    setActiveConversation(newConv);
+    if (!conversations.some((c) => c.id === convId)) {
+      setConversations((prev) => [newConv, ...prev]);
+    }
+    navigate('/mensagens');
+  };
+
+  // Supplier Operations
+  const updateSupplierCompany = async (updated: Partial<SupplierCompany>) => {
+    if (supplierCompany.id && isSupabaseConfigured()) {
+      await SuppliersService.updateCompany(supplierCompany.id, updated);
+    }
     setSupplierCompany((prev) => ({ ...prev, ...updated }));
   };
 
-  const addSupplierMaterial = (matData: Omit<SupplierMaterial, 'id'>) => {
+  const addSupplierMaterial = async (mat: Omit<SupplierMaterial, 'id'>) => {
+    const supplierId = supplierCompany.id || '00000000-0000-0000-0000-000000000003';
+
+    if (isSupabaseConfigured()) {
+      const res = await SuppliersService.createMaterial({
+        ...mat,
+        supplierId,
+      });
+
+      if (res.success && res.data) {
+        setSupplierMaterials((prev) => [res.data!, ...prev]);
+        setPendingActionNotice({
+          title: 'Insumo Salvo no Supabase!',
+          description: `O material "${mat.name}" foi registrado com sucesso na tabela supplier_materials.`,
+        });
+        return;
+      }
+    }
+
     const newMat: SupplierMaterial = {
-      ...matData,
       id: `mat-${Date.now()}`,
+      ...mat,
+      supplierId,
     };
     setSupplierMaterials((prev) => [newMat, ...prev]);
+    setPendingActionNotice({
+      title: 'Insumo Cadastrado!',
+      description: `O material "${mat.name}" foi registrado. Conecte o Supabase para sincronização permanente.`,
+    });
   };
 
-  const updateSupplierMaterial = (matId: string, updated: Partial<SupplierMaterial>) => {
-    setSupplierMaterials((prev) =>
-      prev.map((m) => (m.id === matId ? { ...m, ...updated } : m))
-    );
+  const updateSupplierMaterial = async (matId: string, updated: Partial<SupplierMaterial>) => {
+    setSupplierMaterials((prev) => prev.map((m) => (m.id === matId ? { ...m, ...updated } : m)));
   };
 
-  const deleteSupplierMaterial = (matId: string) => {
+  const deleteSupplierMaterial = async (matId: string) => {
     setSupplierMaterials((prev) => prev.filter((m) => m.id !== matId));
   };
 
-  const addDemand = (demandData: Omit<MaterialDemand, 'id' | 'quotesCount' | 'createdAt' | 'status'>) => {
+  // Demands & Quotes
+  const addDemand = async (demand: Omit<MaterialDemand, 'id' | 'quotesCount' | 'createdAt' | 'status'>) => {
+    const artisanId = currentArtisan?.id || '00000000-0000-0000-0000-000000000001';
+
+    if (isSupabaseConfigured()) {
+      const res = await SuppliersService.createDemand({
+        ...demand,
+        artisanId,
+      });
+      if (res.success && res.data) {
+        setDemands((prev) => [res.data!, ...prev]);
+        return;
+      }
+    }
+
     const newDem: MaterialDemand = {
-      ...demandData,
       id: `dem-${Date.now()}`,
-      quotesCount: 0,
+      ...demand,
+      artisanId,
       status: 'open',
-      createdAt: 'Agora',
+      quotesCount: 0,
+      createdAt: new Date().toISOString(),
     };
     setDemands((prev) => [newDem, ...prev]);
   };
 
-  const addSupplierQuote = (demandId: string, quoteData: Omit<SupplierQuote, 'id' | 'demandId' | 'createdAt'>) => {
+  const addSupplierQuote = async (demandId: string, quote: Omit<SupplierQuote, 'id' | 'demandId' | 'createdAt'>) => {
+    const supplierId = supplierCompany.id || '00000000-0000-0000-0000-000000000003';
+
+    if (isSupabaseConfigured()) {
+      await SuppliersService.submitQuote({
+        demandId,
+        supplierId,
+        priceCents: quote.priceCents,
+        shippingCents: quote.shippingCents,
+        shippingDays: quote.shippingDays,
+        notes: quote.notes,
+      });
+    }
+
     const newQuote: SupplierQuote = {
-      ...quoteData,
-      id: `q-${Date.now()}`,
+      id: `quote-${Date.now()}`,
       demandId,
-      createdAt: 'Agora',
+      createdAt: new Date().toISOString(),
+      ...quote,
+      supplierId,
     };
 
     setQuotes((prev) => ({
@@ -829,24 +722,22 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }));
 
     setDemands((prev) =>
-      prev.map((d) =>
-        d.id === demandId
-          ? { ...d, quotesCount: d.quotesCount + 1, status: 'quotes_received' }
-          : d
-      )
+      prev.map((d) => (d.id === demandId ? { ...d, quotesCount: d.quotesCount + 1, status: 'quotes_received' } : d))
     );
   };
 
   const submitCustomRequest = (req: Omit<CustomPieceRequest, 'id' | 'createdAt' | 'status'>) => {
     const newReq: CustomPieceRequest = {
-      ...req,
       id: `req-${Date.now()}`,
+      ...req,
       status: 'pending',
-      createdAt: new Date().toLocaleDateString('pt-BR'),
+      createdAt: new Date().toISOString(),
     };
     setCustomRequests((prev) => [newReq, ...prev]);
+    notifyPendingIntegration('Solicitação Sob Encomenda', `Pedido de ${req.clientName} registrado.`);
   };
 
+  // Admin Governance
   const updatePlatformCommission = (percent: number) => {
     setPlatformSettings((prev) => ({ ...prev, commissionPercent: percent }));
   };
@@ -862,6 +753,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setCurrentRole,
         currentRoute,
         navigate,
+        isSupabaseConnected,
+        syncSupabaseData,
         currentUser,
         sessions,
         isAuthenticated,
@@ -918,6 +811,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsAssistedSignupOpen,
         isOnboardingOpen,
         setIsOnboardingOpen,
+        pendingActionNotice,
+        setPendingActionNotice,
+        notifyPendingIntegration,
       }}
     >
       {children}
@@ -925,7 +821,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
-export const useMarketplace = () => {
+export const useMarketplace = (): MarketplaceContextType => {
   const context = useContext(MarketplaceContext);
   if (!context) {
     throw new Error('useMarketplace must be used within a MarketplaceProvider');

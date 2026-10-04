@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, Heart, MessageSquare, ShoppingBag, ArrowUpDown, Sparkles, X, Check } from 'lucide-react';
+import { Search, Filter, Heart, MessageSquare, ShoppingBag, ArrowUpDown, Sparkles, X, Check, Package } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
+import { structuralCategories } from '../../data/categoriesData';
 
 interface CustomerProductsViewProps {
   initialCategory?: string;
@@ -15,6 +17,7 @@ export const CustomerProductsView: React.FC<CustomerProductsViewProps> = ({ init
     startChatWithArtisan,
     toggleFavorite,
     isFavorite,
+    setCurrentRole,
   } = useMarketplace();
 
   const [search, setSearch] = useState('');
@@ -25,11 +28,8 @@ export const CustomerProductsView: React.FC<CustomerProductsViewProps> = ({ init
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const categories = [
-    { id: 'all', label: 'Todas as Categorias', icon: '✨' },
-    { id: 'Crochê & Amigurumi', label: 'Crochê & Amigurumi', icon: '🧶' },
-    { id: 'Cerâmica', label: 'Cerâmica', icon: '🏺' },
-    { id: 'Bordado', label: 'Bordado', icon: '🪡' },
-    { id: 'Macramê', label: 'Macramê', icon: '🌾' },
+    { id: 'all', label: 'Todas as Técnicas', icon: '✨' },
+    ...structuralCategories.map((c) => ({ id: c.name, label: c.name, icon: '🌿' })),
   ];
 
   const activeFiltersCount =
@@ -262,22 +262,26 @@ export const CustomerProductsView: React.FC<CustomerProductsViewProps> = ({ init
         {/* Product Grid Area */}
         <div className="lg:col-span-3 space-y-4">
           {sortedProducts.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-[#EADBCC]">
-              <Sparkles className="w-10 h-10 text-[#C4B5A5] mx-auto mb-2" />
-              <h3 className="font-serif font-bold text-base text-[#2D241E] mb-1">Nenhuma peça encontrada</h3>
-              <p className="text-xs text-[#8C7667] mb-4">Tente ajustar seus filtros ou selecionar outra técnica manual.</p>
-              <button
-                onClick={() => {
+            <EmptyState
+              icon={Package}
+              title={products.length === 0 ? "Ainda não existem produtos disponíveis" : "Nenhuma peça encontrada"}
+              description={
+                products.length === 0
+                  ? "O catálogo será preenchido pelas artesãs cadastradas na plataforma após conexão com o banco de dados."
+                  : "Nenhum produto correspondeu aos filtros aplicados. Tente buscar por outros termos ou limpar os filtros."
+              }
+              actionText={products.length === 0 ? "Cadastrar Peça como Artesã" : "Limpar Filtros"}
+              onAction={() => {
+                if (products.length === 0) {
+                  setCurrentRole('artisan');
+                } else {
                   setCategory('all');
                   setSearch('');
                   setPriceRange('all');
                   setAvailability('all');
-                }}
-                className="bg-[#8E3E19] text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
-              >
-                Limpar Filtros e Ver Todas
-              </button>
-            </div>
+                }
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {sortedProducts.map((prod) => (

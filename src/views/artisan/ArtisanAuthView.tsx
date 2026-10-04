@@ -51,13 +51,13 @@ export const ArtisanAuthView: React.FC<ArtisanAuthViewProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = login({
+    try {
+      const res = await login({
         email: loginEmail,
         password: loginPassword,
         role: 'artisan',
@@ -73,16 +73,19 @@ export const ArtisanAuthView: React.FC<ArtisanAuthViewProps> = ({
       } else {
         setErrorMsg(res.error || 'Não foi possível acessar.');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err?.message || 'Erro ao conectar ateliê.');
+    }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = register({
+    try {
+      const res = await register({
         role: 'artisan',
         name: artisanName,
         email,
@@ -105,27 +108,28 @@ export const ArtisanAuthView: React.FC<ArtisanAuthViewProps> = ({
       } else {
         setErrorMsg(res.error || 'Erro ao registrar ateliê.');
       }
-    }, 500);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err?.message || 'Erro ao registrar.');
+    }
   };
 
-  const handleDemoLogin = () => {
+  const handleDemoLogin = async () => {
     setLoginEmail('maria.artesa@artenos.com.br');
     setLoginPassword('••••••••');
     setIsLoading(true);
 
+    await login({
+      email: 'maria.artesa@artenos.com.br',
+      password: 'demo',
+      role: 'artisan',
+    });
+    setIsLoading(false);
+    setSuccessMsg('Conectada como Maria das Dores (Ateliê Fios de Afeto)!');
     setTimeout(() => {
-      login({
-        email: 'maria.artesa@artenos.com.br',
-        password: 'demo',
-        role: 'artisan',
-      });
-      setIsLoading(false);
-      setSuccessMsg('Conectada como Maria das Dores (Ateliê Fios de Afeto)!');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        else navigate('/artesa/dashboard');
-      }, 700);
-    }, 300);
+      if (onSuccess) onSuccess();
+      else navigate('/artesa/dashboard');
+    }, 700);
   };
 
   return (

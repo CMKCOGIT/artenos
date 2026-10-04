@@ -20,6 +20,7 @@ import {
   PhoneCall,
   LogOut,
   ArrowRight,
+  Database,
 } from 'lucide-react';
 import { useMarketplace } from '../store/marketplaceStore';
 

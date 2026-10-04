@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowLeft, MessageSquare, Star, MapPin, Sparkles, Heart } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Star, MapPin, Sparkles, Heart, Store } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 interface CustomerArtisanProfileViewProps {
   artisanId: string;
@@ -16,9 +17,25 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
     addToCart,
     toggleFavorite,
     isFavorite,
+    notifyPendingIntegration,
   } = useMarketplace();
 
-  const artisan = artisans.find((a) => a.id === artisanId) || artisans[0];
+  const artisan = artisans.find((a) => a.id === artisanId);
+
+  if (!artisan) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <EmptyState
+          icon={Store}
+          title="Artesã não encontrada"
+          description="O ateliê ou perfil de artesã solicitado não está disponível no momento. Explore a vitrine para conhecer outras mestras artesãs."
+          actionText="Ver Vitrine de Peças"
+          onAction={() => navigate('/produtos')}
+        />
+      </div>
+    );
+  }
+
   const artisanProducts = products.filter((p) => p.artisanId === artisan.id);
 
   return (
@@ -67,7 +84,14 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
               <button
                 onClick={() => {
                   const firstProd = artisanProducts[0] || products[0];
-                  startChatWithArtisan(firstProd);
+                  if (firstProd) {
+                    startChatWithArtisan(firstProd);
+                  } else {
+                    notifyPendingIntegration(
+                      'Conversa com a Artesã',
+                      `Canal de mensagem direta com ${artisan.name} aguardando conexão em tempo real.`
+                    );
+                  }
                 }}
                 className="bg-[#8E3E19] hover:bg-[#733113] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
@@ -110,8 +134,17 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {artisanProducts.map((prod) => (
+        {artisanProducts.length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title="Nenhuma peça disponível neste ateliê no momento"
+            description="A artesã ainda não publicou criações no catálogo público. Você pode navegar pela vitrine principal para conhecer outras peças artesanais."
+            actionText="Ver Vitrine de Peças"
+            onAction={() => navigate('/produtos')}
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {artisanProducts.map((prod) => (
             <div
               key={prod.id}
               className="bg-white rounded-2xl overflow-hidden border border-[#EADBCC] shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
@@ -186,6 +219,7 @@ export const CustomerArtisanProfileView: React.FC<CustomerArtisanProfileViewProp
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

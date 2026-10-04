@@ -1,0 +1,8 @@
+/**
+ * Entrada e Contexto da Aplicação Artenós
+ */
+
+export * from '../config';
+export * from '../types';
+export * from '../services';
+export * from '../schemas';

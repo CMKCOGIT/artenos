@@ -1,5 +1,18 @@
 export type UserRole = 'customer' | 'artisan' | 'supplier' | 'admin';
 
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  cpfCnpj?: string;
+  role: UserRole;
+  avatarUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -8,13 +21,11 @@ export interface AuthUser {
   avatarUrl?: string;
   phone?: string;
   cpf?: string;
-  // Artisan specific
   studioName?: string;
   specialties?: string[];
   location?: string;
   pixKey?: string;
   bio?: string;
-  // Supplier specific
   companyName?: string;
   cnpj?: string;
   category?: string;
@@ -37,30 +48,15 @@ export interface RegisterPayload {
   category?: string;
 }
 
-export interface Product {
+export interface Customer {
   id: string;
-  title: string;
-  slug: string;
-  artisanId: string;
-  artisanName: string;
-  artisanLocation: string;
-  artisanAvatar: string;
-  category: string;
-  materials: string[];
-  dimensions: string;
-  weightGrams: number;
-  stock: number;
-  isCustomizable: boolean;
-  isReadyToShip: boolean;
-  productionDays: number;
-  priceCents: number; // Stored in cents to avoid float inaccuracies
-  description: string;
-  story: string;
-  rating: number;
-  reviewsCount: number;
-  badge?: string; // e.g., 'ÚNICO DISPONÍVEL', 'DESTAQUE DO MÊS', 'EXCLUSIVO', 'SOB ENCOMENDA'
-  imageUrl: string;
-  videoUrl?: string;
+  profileId: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  cpf?: string;
+  preferences?: string[];
+  createdAt: string;
 }
 
 export interface Artisan {
@@ -84,6 +80,24 @@ export interface Artisan {
   revenueCents?: number;
 }
 
+export interface Supplier {
+  id: string;
+  profileId?: string;
+  companyName: string;
+  tradeName?: string;
+  cnpj?: string;
+  category: string;
+  description?: string;
+  logoUrl?: string;
+  location: string;
+  phone: string;
+  email: string;
+  minOrderCents: number;
+  rating: number;
+  verified: boolean;
+  createdAt?: string;
+}
+
 export interface SupplierCompany {
   id: string;
   name: string;
@@ -98,7 +112,188 @@ export interface SupplierCompany {
   verified: boolean;
 }
 
-export interface SupplierMaterial {
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  iconName?: string;
+  parentId?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  altText?: string;
+  displayOrder: number;
+  isPrimary: boolean;
+}
+
+export interface Product {
+  id: string;
+  title: string;
+  slug: string;
+  artisanId: string;
+  artisanName: string;
+  artisanLocation: string;
+  artisanAvatar: string;
+  category: string;
+  categoryId?: string;
+  materials: string[];
+  dimensions: string;
+  weightGrams: number;
+  stock: number;
+  isCustomizable: boolean;
+  isReadyToShip: boolean;
+  productionDays: number;
+  priceCents: number;
+  description: string;
+  story: string;
+  rating: number;
+  reviewsCount: number;
+  badge?: string;
+  imageUrl: string;
+  videoUrl?: string;
+  createdAt?: string;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  customizationNotes?: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  subtotalCents: number;
+  shippingCents: number;
+  totalCents: number;
+}
+
+export interface OrderItem {
+  productId: string;
+  title: string;
+  artisanId: string;
+  artisanName: string;
+  unitPriceCents: number;
+  quantity: number;
+  imageUrl: string;
+  customizationNotes?: string;
+}
+
+export type OrderStatus = 'created' | 'paid' | 'in_production' | 'shipped' | 'completed' | 'cancelled';
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  clientAddress: {
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    cep: string;
+  };
+  items: OrderItem[];
+  subtotalCents: number;
+  shippingCents: number;
+  shippingMethod: 'PAC' | 'Sedex' | 'Transportadora';
+  totalCents: number;
+  platformFeeCents: number;
+  artisanPayoutCents: number;
+  paymentMethod: 'pix' | 'credit_card';
+  status: OrderStatus;
+  trackingCode?: string;
+  createdAt: string;
+}
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  gatewayName: string;
+  method: 'pix' | 'credit_card';
+  status: 'pending' | 'approved' | 'rejected' | 'refunded';
+  amountCents: number;
+  splitPlatformCents: number;
+  splitArtisanCents: number;
+  paidAt?: string;
+}
+
+export interface Shipping {
+  id: string;
+  orderId: string;
+  carrier: string;
+  service: string;
+  trackingCode?: string;
+  priceCents: number;
+  estimatedDeliveryDays: number;
+  status: 'pending' | 'shipped' | 'delivered';
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  content: string;
+  timestamp: string;
+  attachments?: string[];
+  status: 'sent' | 'delivered' | 'read';
+}
+
+export type Message = ChatMessage;
+
+export interface Conversation {
+  id: string;
+  productId?: string;
+  productTitle?: string;
+  productPriceCents?: number;
+  productImg?: string;
+  artisanId: string;
+  artisanName: string;
+  artisanAvatar: string;
+  clientId: string;
+  clientName: string;
+  lastMessage: string;
+  updatedAt: string;
+  unreadCount: number;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface Favorite {
+  id: string;
+  userId: string;
+  productId: string;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  linkUrl?: string;
+}
+
+export interface Material {
   id: string;
   supplierId: string;
   supplierName: string;
@@ -107,16 +302,17 @@ export interface SupplierMaterial {
   name: string;
   description: string;
   priceCents: number;
-  unit: string; // e.g. "kg", "rolo 500g", "novelo", "peça", "bobina 1kg"
+  unit: string;
   stockStatus: string;
   stockQty: number;
   location: string;
   minOrderQty: number;
   imageUrl: string;
-  // Specific craft batch details:
-  batchCode?: string; // Lote (ex: #LT-2026-A4)
-  shadeTone?: string; // Tonalidade/Banho (ex: "Banho 12 - Terracota Queimado")
+  batchCode?: string;
+  shadeTone?: string;
 }
+
+export type SupplierMaterial = Material;
 
 export interface MaterialDemand {
   id: string;
@@ -145,81 +341,6 @@ export interface SupplierQuote {
   notes: string;
   status: 'sent' | 'accepted' | 'rejected';
   createdAt: string;
-}
-
-export interface CartItem {
-  product: Product;
-  quantity: number;
-  customizationNotes?: string;
-}
-
-export interface OrderItem {
-  productId: string;
-  title: string;
-  artisanId: string;
-  artisanName: string;
-  unitPriceCents: number;
-  quantity: number;
-  imageUrl: string;
-  customizationNotes?: string;
-}
-
-export type OrderStatus = 'created' | 'paid' | 'in_production' | 'shipped' | 'completed';
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  clientAddress: {
-    street: string;
-    number: string;
-    complement?: string;
-    neighborhood: string;
-    city: string;
-    state: string;
-    cep: string;
-  };
-  items: OrderItem[];
-  subtotalCents: number;
-  shippingCents: number;
-  shippingMethod: 'PAC' | 'Sedex' | 'Transportadora';
-  totalCents: number;
-  platformFeeCents: number; // Platform split percentage
-  artisanPayoutCents: number; // Artisan payout
-  paymentMethod: 'pix' | 'credit_card';
-  status: OrderStatus;
-  trackingCode?: string;
-  createdAt: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  senderName: string;
-  senderRole: UserRole;
-  content: string;
-  timestamp: string;
-  attachments?: string[];
-  status: 'sent' | 'delivered' | 'read';
-}
-
-export interface Conversation {
-  id: string;
-  productId?: string;
-  productTitle?: string;
-  productPriceCents?: number;
-  productImg?: string;
-  artisanId: string;
-  artisanName: string;
-  artisanAvatar: string;
-  clientId: string;
-  clientName: string;
-  lastMessage: string;
-  updatedAt: string;
-  unreadCount: number;
 }
 
 export interface CustomPieceRequest {
@@ -253,9 +374,8 @@ export interface CustomerProfile {
 }
 
 export interface PlatformSettings {
-  commissionPercent: number; // e.g. 10
+  commissionPercent: number;
   autoApproveArtisans: boolean;
   totalGMVCents: number;
   totalTransactionsCount: number;
 }
-

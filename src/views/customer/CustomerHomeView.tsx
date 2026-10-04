@@ -8,14 +8,15 @@ import {
   Package,
   ShieldCheck,
   Check,
-  Compass,
   Store,
   Factory,
   ChevronRight,
+  Compass,
 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
-import { Product } from '../../types';
+import { EmptyState } from '../../components/common/EmptyState';
+import { structuralCategories } from '../../data/categoriesData';
 
 export const CustomerHomeView: React.FC = () => {
   const {
@@ -28,9 +29,9 @@ export const CustomerHomeView: React.FC = () => {
     toggleFavorite,
     isFavorite,
     setCurrentRole,
-    customRequests,
     submitCustomRequest,
     setIsOnboardingOpen,
+    notifyPendingIntegration,
   } = useMarketplace();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,17 +56,15 @@ export const CustomerHomeView: React.FC = () => {
     if (!customDesc.trim()) return;
 
     submitCustomRequest({
-      clientName: 'Kaike Elias',
-      clientContact: '(11) 98765-4321',
+      clientName: 'Comprador Artenós',
+      clientContact: 'contato@artenos.com.br',
       description: customDesc,
       dimensions: customDim || 'Sob consulta com artesã',
       color: customCol,
     });
 
-    setCustomFeedback('Sua solicitação de encomenda foi enviada com sucesso para as artesãs!');
     setCustomDesc('');
     setCustomDim('');
-    setTimeout(() => setCustomFeedback(''), 6000);
   };
 
   return (
@@ -116,40 +115,24 @@ export const CustomerHomeView: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Filter Tags (Quiet inline metadata with separators) */}
+          {/* Quick Filter Tags */}
           <div className="flex items-center justify-center gap-2 text-xs text-[#735F52] flex-wrap pt-1">
             <span className="font-semibold text-[#4A3B32]">Sugestões:</span>
-            <button
-              onClick={() => navigate('/categoria/Crochê & Amigurumi')}
-              className="hover:text-[#8E3E19] cursor-pointer underline-offset-4 hover:underline"
-            >
-              Crochê & Amigurumi
-            </button>
-            <span aria-hidden="true" className="text-[#C9BDB0]">·</span>
-            <button
-              onClick={() => navigate('/categoria/Cerâmica')}
-              className="hover:text-[#8E3E19] cursor-pointer underline-offset-4 hover:underline"
-            >
-              Cerâmica Rústica
-            </button>
-            <span aria-hidden="true" className="text-[#C9BDB0]">·</span>
-            <button
-              onClick={() => navigate('/categoria/Bordado')}
-              className="hover:text-[#8E3E19] cursor-pointer underline-offset-4 hover:underline"
-            >
-              Bordado Livre
-            </button>
-            <span aria-hidden="true" className="text-[#C9BDB0]">·</span>
-            <button
-              onClick={() => navigate('/categoria/Macramê')}
-              className="hover:text-[#8E3E19] cursor-pointer underline-offset-4 hover:underline"
-            >
-              Macramê
-            </button>
+            {['Cerâmica & Barro', 'Renda & Bordado', 'Fibras Naturais & Palha', 'Macramê & Nós'].map((cat, idx) => (
+              <React.Fragment key={cat}>
+                {idx > 0 && <span aria-hidden="true" className="text-[#C9BDB0]">·</span>}
+                <button
+                  onClick={() => navigate(`/produtos?categoria=${encodeURIComponent(cat)}`)}
+                  className="hover:text-[#8E3E19] cursor-pointer underline-offset-4 hover:underline"
+                >
+                  {cat}
+                </button>
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
-        {/* 3 Value Commitments (Quiet hairline dividers) */}
+        {/* 3 Value Commitments */}
         <div className="max-w-4xl mx-auto mt-12 pt-8 border-t border-[#EADBCC] grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left">
           <div className="flex items-center gap-3 justify-center sm:justify-start">
             <div className="w-8 h-8 rounded-full bg-[#8E3E19]/10 text-[#8E3E19] flex items-center justify-center shrink-0">
@@ -183,57 +166,62 @@ export const CustomerHomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Categorias Artesanais - Clean Cards */}
+      {/* 2. Categorias Artesanais Estruturais */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold font-serif text-[#2D241E]">
-              Técnicas Manuais
+              Técnicas Manuais do Brasil
             </h2>
             <p className="text-xs text-[#6B5A4E]">
-              Descubra criações organizadas pelas ricas tradições artesanais do país
+              Explore criações organizadas pelas ricas tradições artesanais do nosso país
             </p>
           </div>
           <button
             onClick={() => navigate('/produtos')}
             className="text-xs font-bold text-[#8E3E19] hover:underline cursor-pointer flex items-center gap-1"
           >
-            <span>Ver Todas as Peças</span>
+            <span>Ver Catálogo</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { name: 'Crochê & Amigurumi', count: '14 peças', icon: '🧶', slug: 'Crochê & Amigurumi' },
-            { name: 'Cerâmica Rústica', count: '9 peças', icon: '🏺', slug: 'Cerâmica' },
-            { name: 'Bordado em Bastidor', count: '12 peças', icon: '🪡', slug: 'Bordado' },
-            { name: 'Macramê & Fios', count: '8 peças', icon: '🌾', slug: 'Macramê' },
-          ].map((cat) => (
+          {structuralCategories.slice(0, 4).map((cat) => (
             <button
-              key={cat.name}
-              onClick={() => navigate(`/categoria/${encodeURIComponent(cat.slug)}`)}
-              className="bg-white p-5 rounded-2xl border border-[#E8DCCF] text-left hover:border-[#8E3E19] hover:shadow-xs transition-all cursor-pointer group"
+              key={cat.id}
+              onClick={() => navigate(`/produtos?categoria=${encodeURIComponent(cat.name)}`)}
+              className="bg-white p-5 rounded-2xl border border-[#E8DCCF] text-left hover:border-[#8E3E19] hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
             >
-              <span className="text-2xl mb-2.5 block">{cat.icon}</span>
-              <h3 className="font-bold text-sm text-[#2D241E] group-hover:text-[#8E3E19] transition-colors">
-                {cat.name}
-              </h3>
-              <span className="text-xs text-[#8C7667]">{cat.count}</span>
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-[#EFE6DC] text-[#8E3E19] flex items-center justify-center mb-3">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-[#2D241E] group-hover:text-[#8E3E19] transition-colors mb-1">
+                  {cat.name}
+                </h3>
+                <p className="text-[11px] text-[#735F52] line-clamp-2 leading-relaxed">
+                  {cat.description}
+                </p>
+              </div>
+              <span className="text-[10px] font-semibold text-[#8E3E19] uppercase tracking-wider mt-3 inline-flex items-center gap-1">
+                <span>Ver peças</span>
+                <ArrowRight className="w-2.5 h-2.5" />
+              </span>
             </button>
           ))}
         </div>
       </section>
 
-      {/* 3. Peças em Destaque (Pronta Entrega) - Clean Product Cards */}
+      {/* 3. Peças em Destaque */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-6">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#8E3E19] block mb-0.5">
-              Pronta Entrega
+              Vitrine
             </span>
             <h2 className="text-2xl font-bold font-serif text-[#2D241E]">
-              Peças Prontas para Envio
+              Peças em Destaque
             </h2>
           </div>
           <button
@@ -245,142 +233,162 @@ export const CustomerHomeView: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((prod) => (
-            <div
-              key={prod.id}
-              className="bg-white rounded-2xl overflow-hidden border border-[#E8DCCF] shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
-            >
-              <div>
-                <div
-                  className="relative aspect-4/3 bg-[#F4EDE2] cursor-pointer overflow-hidden"
-                  onClick={() => navigate(`/produto/${prod.id}`)}
-                >
-                  <img
-                    src={prod.imageUrl}
-                    alt={prod.title}
-                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
-                  />
-                  {prod.badge && (
-                    <span className="absolute top-2.5 left-2.5 bg-[#8E3E19] text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-md">
-                      {prod.badge}
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(prod.id);
-                    }}
-                    className={`absolute top-2.5 right-2.5 p-1.5 rounded-full backdrop-blur-xs transition-colors cursor-pointer ${
-                      isFavorite(prod.id)
-                        ? 'bg-rose-500 text-white'
-                        : 'bg-white/80 text-[#8C7667] hover:text-[#8E3E19]'
-                    }`}
-                    title={isFavorite(prod.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                  >
-                    <Heart className="w-3.5 h-3.5 fill-current" />
-                  </button>
-                </div>
-
-                <div className="p-4 cursor-pointer" onClick={() => navigate(`/produto/${prod.id}`)}>
-                  <div className="flex items-center justify-between text-[11px] text-[#735F52] mb-1">
-                    <span className="truncate">{prod.artisanName}</span>
-                    <span>★ {prod.rating}</span>
-                  </div>
-                  <h3 className="font-bold text-sm text-[#2D241E] group-hover:text-[#8E3E19] transition-colors line-clamp-1 mb-1">
-                    {prod.title}
-                  </h3>
-                  <p className="text-xs text-[#6B5A4E] line-clamp-2">{prod.description}</p>
-                </div>
-              </div>
-
-              <div className="p-4 pt-0 border-t border-[#F4EFE8] flex items-center justify-between gap-2 mt-2">
+        {featuredProducts.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title="Ainda não existem produtos disponíveis"
+            description="Quando as primeiras mestras cadastrarem suas peças, a vitrine principal será preenchida automaticamente."
+            actionText="Cadastrar Peça na Central da Artesã"
+            onAction={() => setCurrentRole('artisan')}
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((prod) => (
+              <div
+                key={prod.id}
+                className="bg-white rounded-2xl overflow-hidden border border-[#E8DCCF] shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
+              >
                 <div>
-                  <span className="text-[9px] uppercase font-semibold text-[#8C7667] block">Preço</span>
-                  <span className="font-bold text-sm text-[#2D241E] tabular-nums">{formatCurrency(prod.priceCents)}</span>
+                  <div
+                    className="relative aspect-4/3 bg-[#F4EDE2] cursor-pointer overflow-hidden"
+                    onClick={() => navigate(`/produto/${prod.id}`)}
+                  >
+                    <img
+                      src={prod.imageUrl}
+                      alt={prod.title}
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                    />
+                    {prod.badge && (
+                      <span className="absolute top-2.5 left-2.5 bg-[#8E3E19] text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-md">
+                        {prod.badge}
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(prod.id);
+                      }}
+                      className={`absolute top-2.5 right-2.5 p-1.5 rounded-full backdrop-blur-xs transition-colors cursor-pointer ${
+                        isFavorite(prod.id)
+                          ? 'bg-rose-500 text-white'
+                          : 'bg-white/80 text-[#8C7667] hover:text-[#8E3E19]'
+                      }`}
+                      title={isFavorite(prod.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    >
+                      <Heart className="w-3.5 h-3.5 fill-current" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 cursor-pointer" onClick={() => navigate(`/produto/${prod.id}`)}>
+                    <div className="flex items-center justify-between text-[11px] text-[#735F52] mb-1">
+                      <span className="truncate">{prod.artisanName}</span>
+                      <span>★ {prod.rating}</span>
+                    </div>
+                    <h3 className="font-bold text-sm text-[#2D241E] group-hover:text-[#8E3E19] transition-colors line-clamp-1 mb-1">
+                      {prod.title}
+                    </h3>
+                    <p className="text-xs text-[#6B5A4E] line-clamp-2">{prod.description}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => startChatWithArtisan(prod)}
-                    className="p-2 border border-[#D9CDBF] hover:bg-[#FAF7F2] rounded-xl text-[#8E3E19] cursor-pointer"
-                    title="Conversar com a artesã"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      addToCart(prod, 1);
-                      navigate('/carrinho');
-                    }}
-                    className="bg-[#8E3E19] hover:bg-[#733113] text-white text-xs font-bold px-3.5 py-2 rounded-xl cursor-pointer transition-colors shadow-2xs"
-                  >
-                    Comprar
-                  </button>
+
+                <div className="p-4 pt-0 border-t border-[#F4EFE8] flex items-center justify-between gap-2 mt-2">
+                  <div>
+                    <span className="text-[9px] uppercase font-semibold text-[#8C7667] block">Preço</span>
+                    <span className="font-bold text-sm text-[#2D241E] tabular-nums">{formatCurrency(prod.priceCents)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => startChatWithArtisan(prod)}
+                      className="p-2 border border-[#D9CDBF] hover:bg-[#FAF7F2] rounded-xl text-[#8E3E19] cursor-pointer"
+                      title="Conversar com a artesã"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        addToCart(prod, 1);
+                        navigate('/carrinho');
+                      }}
+                      className="bg-[#8E3E19] hover:bg-[#733113] text-white text-xs font-bold px-3.5 py-2 rounded-xl cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Comprar
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* 4. Artesãs em Foco - Histórias Reais */}
+      {/* 4. Artesãs em Foco */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-[#FAF7F2] py-12 rounded-3xl border border-[#E8DCCF]">
         <div className="text-center max-w-2xl mx-auto mb-10">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#8E3E19] block mb-1">
             Mãos Criadoras
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold font-serif text-[#2D241E] mb-2">
-            Histórias por Trás de Quem Faz
+            Mestras Artesãs do Brasil
           </h2>
           <p className="text-xs sm:text-sm text-[#6B5A4E]">
             Cada peça na Artenós carrega tempo, identidade e a vivência de uma artesã independente.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {artisans.slice(0, 3).map((artisan) => (
-            <div
-              key={artisan.id}
-              className="bg-white rounded-2xl p-5 border border-[#E8DCCF] shadow-2xs flex flex-col justify-between"
-            >
-              <div>
-                <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-4 bg-[#F4EDE2]">
-                  <img src={artisan.avatarUrl} alt={artisan.name} className="w-full h-full object-cover" />
-                  <span className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[11px] px-2.5 py-0.5 rounded-md">
-                    {artisan.location}
-                  </span>
+        {artisans.length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title="Nenhuma artesã disponível no momento"
+            description="Os perfis e ateliês das artesãs brasileiras cadastradas serão exibidos nesta seção assim que a conexão com o banco for concluída."
+            actionText="Abrir Atelier na Artenós"
+            onAction={() => setCurrentRole('artisan')}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {artisans.slice(0, 3).map((artisan) => (
+              <div
+                key={artisan.id}
+                className="bg-white rounded-2xl p-5 border border-[#E8DCCF] shadow-2xs flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-4 bg-[#F4EDE2]">
+                    <img src={artisan.avatarUrl} alt={artisan.name} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[11px] px-2.5 py-0.5 rounded-md">
+                      {artisan.location}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-bold text-[#8E3E19]">{artisan.studioName}</span>
+                    <span className="text-[#8C7667]">★ {artisan.rating}</span>
+                  </div>
+
+                  <h3 className="font-serif font-bold text-base text-[#2D241E] mb-2">
+                    {artisan.name}
+                  </h3>
+
+                  <p className="text-xs italic text-[#5C4A3E] leading-relaxed mb-4">
+                    "{artisan.featuredQuote}"
+                  </p>
                 </div>
 
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-[#8E3E19]">{artisan.studioName}</span>
-                  <span className="text-[#8C7667]">★ {artisan.rating}</span>
+                <div className="pt-3 border-t border-[#F4EFE8] flex items-center justify-between">
+                  <span className="text-xs text-[#8C7667]">{artisan.totalSales} peças criadas</span>
+                  <button
+                    onClick={() => navigate(`/artesa/${artisan.id}`)}
+                    className="text-xs font-bold text-[#8E3E19] hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <span>Ver Ateliê</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-
-                <h3 className="font-serif font-bold text-base text-[#2D241E] mb-2">
-                  {artisan.name}
-                </h3>
-
-                <p className="text-xs italic text-[#5C4A3E] leading-relaxed mb-4">
-                  "{artisan.featuredQuote}"
-                </p>
               </div>
-
-              <div className="pt-3 border-t border-[#F4EFE8] flex items-center justify-between">
-                <span className="text-xs text-[#8C7667]">{artisan.totalSales} peças criadas</span>
-                <button
-                  onClick={() => navigate(`/artesa/${artisan.id}`)}
-                  className="text-xs font-bold text-[#8E3E19] hover:underline cursor-pointer flex items-center gap-1"
-                >
-                  <span>Ver Ateliê</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* 5. Seção de Descoberta dos Outros Perfis (Organizada e sem poluir) */}
+      {/* 5. Perfis da Plataforma */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-[#E8DCCF] flex flex-col justify-between">
@@ -423,7 +431,7 @@ export const CustomerHomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. Encomendas Personalizadas ("Crie uma peça só sua") */}
+      {/* 6. Encomendas Personalizadas */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6">
         <div className="bg-[#FAF7F2] rounded-3xl p-6 sm:p-8 md:p-10 border border-[#E8DCCF]">
           <div className="text-center max-w-lg mx-auto mb-6">
@@ -438,64 +446,54 @@ export const CustomerHomeView: React.FC = () => {
             </p>
           </div>
 
-          {customFeedback && (
-            <div className="mb-4 p-3.5 bg-[#EDF6F1] text-[#1A543E] rounded-xl text-xs font-semibold border border-[#C5E3D2] flex items-center gap-2">
-              <Check className="w-4 h-4 shrink-0" />
-              <span>{customFeedback}</span>
-            </div>
-          )}
-
           <form onSubmit={handleCustomSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-[#3D2E24] mb-1">
-                Descreva como você imagina sua peça *
+                Descrição do que você imagina *
               </label>
               <textarea
-                required
                 rows={3}
+                required
                 value={customDesc}
                 onChange={(e) => setCustomDesc(e.target.value)}
-                placeholder="Ex: Quero um painel de macramê com 80cm de largura em tons de terracota e cru para a cabeceira..."
-                className="w-full bg-white rounded-xl border border-[#D9CDBF] px-3.5 py-2.5 text-xs text-[#2D241E] focus:outline-none focus:ring-2 focus:ring-[#8E3E19]"
+                placeholder="Ex: Gostaria de uma manta de sofá tecida em algodão cru, com detalhes em azul marinho e franjas laterais..."
+                className="w-full text-xs sm:text-sm p-3 rounded-xl border border-[#D9CDBF] bg-white text-[#2D241E] placeholder-[#9C8A7C] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[#3D2E24] mb-1">
-                  Dimensões estimadas
+                  Medidas aproximadas
                 </label>
                 <input
                   type="text"
                   value={customDim}
                   onChange={(e) => setCustomDim(e.target.value)}
-                  placeholder="Ex: 50 cm x 70 cm"
-                  className="w-full bg-white rounded-xl border border-[#D9CDBF] px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-2 focus:ring-[#8E3E19]"
+                  placeholder="Ex: 1,80m x 1,20m"
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-[#D9CDBF] bg-white text-[#2D241E] placeholder-[#9C8A7C] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#3D2E24] mb-1">
-                  Paleta de cores preferida
+                  Paleta de cores sugerida
                 </label>
-                <select
+                <input
+                  type="text"
                   value={customCol}
                   onChange={(e) => setCustomCol(e.target.value)}
-                  className="w-full bg-white rounded-xl border border-[#D9CDBF] px-3.5 py-2 text-xs text-[#2D241E] focus:outline-none focus:ring-2 focus:ring-[#8E3E19]"
-                >
-                  <option value="Terracota e Cru">Terracota e Algodão Cru</option>
-                  <option value="Verde Floresta & Mostarda">Verde Floresta & Mostarda</option>
-                  <option value="Tons Pastéis">Tons Pastéis</option>
-                  <option value="Argila Queimada Natural">Argila Queimada Natural</option>
-                </select>
+                  placeholder="Ex: Tons terrosos, verde musgo..."
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-[#D9CDBF] bg-white text-[#2D241E] placeholder-[#9C8A7C] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
+                />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#8E3E19] hover:bg-[#733113] text-white py-3 rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+              className="w-full bg-[#8E3E19] hover:bg-[#733113] text-white text-xs font-bold py-3 rounded-xl transition-colors cursor-pointer shadow-2xs"
             >
-              Enviar Pedido de Encomenda para as Artesãs
+              Enviar Solicitação de Encomenda
             </button>
           </form>
         </div>

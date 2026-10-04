@@ -11,7 +11,7 @@ export const CustomerCartView: React.FC = () => {
     navigate,
   } = useMarketplace();
 
-  const [cep, setCep] = useState('05435-000');
+  const [cep, setCep] = useState('');
   const [shippingMethod, setShippingMethod] = useState<'PAC' | 'Sedex'>('PAC');
   const [isCalc, setIsCalc] = useState(false);
 

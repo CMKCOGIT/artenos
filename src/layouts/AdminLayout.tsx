@@ -30,6 +30,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     setCurrentRole,
     artisans,
     orders,
+    products,
     platformSettings,
     logout,
     setIsOnboardingOpen,
@@ -41,42 +42,43 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const menuItems = [
     {
-      label: 'Visão Geral & Métricas',
+      label: 'Visão Geral',
       route: '/admin',
       icon: LayoutDashboard,
     },
     {
-      label: 'Gerenciar Usuários',
+      label: 'Usuários',
       route: '/admin/usuarios',
       icon: Users,
     },
     {
-      label: 'Aprovar Artesãs',
+      label: 'Artesãs & Ateliês',
       route: '/admin/artesas',
       icon: UserCheck,
       badge: pendingArtisansCount > 0 ? pendingArtisansCount : null,
       badgeColor: 'bg-amber-600',
     },
     {
-      label: 'Categorias Artesanais',
-      route: '/admin/categorias',
-      icon: Tag,
+      label: 'Fornecedores B2B',
+      route: '/admin/fornecedores',
+      icon: Shield,
     },
     {
-      label: 'Taxas & Comissões',
-      route: '/admin/comissao',
-      icon: Percent,
+      label: 'Produtos no Catálogo',
+      route: '/admin/produtos',
+      icon: Tag,
+      badge: products.length > 0 ? products.length : null,
     },
     {
       label: 'Pedidos & Split',
       route: '/admin/pedidos',
       icon: Receipt,
-      badge: orders.length,
+      badge: orders.length > 0 ? orders.length : null,
     },
     {
-      label: 'Denúncias & Suporte',
-      route: '/admin/denuncias',
-      icon: AlertTriangle,
+      label: 'Configurações & Taxas',
+      route: '/admin/configuracoes',
+      icon: Percent,
     },
   ];
 

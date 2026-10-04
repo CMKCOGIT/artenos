@@ -23,13 +23,13 @@ export const AdminAuthView: React.FC<AdminAuthViewProps> = ({ onSuccess }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = login({
+    try {
+      const res = await login({
         email,
         password,
         role: 'admin',
@@ -45,27 +45,28 @@ export const AdminAuthView: React.FC<AdminAuthViewProps> = ({ onSuccess }) => {
       } else {
         setErrorMsg(res.error || 'Acesso negado.');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err?.message || 'Erro ao conectar.');
+    }
   };
 
-  const handleDemoLogin = () => {
+  const handleDemoLogin = async () => {
     setEmail('admin@artenos.com.br');
     setPassword('••••••••');
     setIsLoading(true);
 
+    await login({
+      email: 'admin@artenos.com.br',
+      password: 'demo',
+      role: 'admin',
+    });
+    setIsLoading(false);
+    setSuccessMsg('Conectado como Superusuário Artenós!');
     setTimeout(() => {
-      login({
-        email: 'admin@artenos.com.br',
-        password: 'demo',
-        role: 'admin',
-      });
-      setIsLoading(false);
-      setSuccessMsg('Conectado como Superusuário Artenós!');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        else navigate('/admin');
-      }, 700);
-    }, 300);
+      if (onSuccess) onSuccess();
+      else navigate('/admin');
+    }, 700);
   };
 
   return (

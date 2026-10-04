@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import { Store, Check, ExternalLink, Sparkles, MapPin, Camera } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
+import { IntegrationPending } from '../../components/common/IntegrationPending';
 
 export const ArtisanStoreProfileView: React.FC = () => {
-  const { currentArtisan, updateArtisanProfile, navigate } = useMarketplace();
+  const { currentArtisan, updateArtisanProfile, navigate, setIsArchitectureOpen } = useMarketplace();
 
-  const [studioName, setStudioName] = useState(currentArtisan.studioName);
-  const [artisanName, setArtisanName] = useState(currentArtisan.name);
-  const [location, setLocation] = useState(currentArtisan.location);
-  const [bio, setBio] = useState(currentArtisan.bio);
-  const [story, setStory] = useState(currentArtisan.story);
-  const [phone, setPhone] = useState(currentArtisan.phone);
-  const [instagram, setInstagram] = useState(currentArtisan.instagram);
-  const [specialties, setSpecialties] = useState(currentArtisan.specialties.join(', '));
-  const [pixKey, setPixKey] = useState(currentArtisan.pixKey || '');
+  const [studioName, setStudioName] = useState(currentArtisan?.studioName || '');
+  const [artisanName, setArtisanName] = useState(currentArtisan?.name || '');
+  const [location, setLocation] = useState(currentArtisan?.location || '');
+  const [bio, setBio] = useState(currentArtisan?.bio || '');
+  const [story, setStory] = useState(currentArtisan?.story || '');
+  const [phone, setPhone] = useState(currentArtisan?.phone || '');
+  const [instagram, setInstagram] = useState(currentArtisan?.instagram || '');
+  const [specialties, setSpecialties] = useState(currentArtisan?.specialties ? currentArtisan.specialties.join(', ') : '');
+  const [pixKey, setPixKey] = useState(currentArtisan?.pixKey || '');
 
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [showPending, setShowPending] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,11 +28,10 @@ export const ArtisanStoreProfileView: React.FC = () => {
       story,
       phone,
       instagram,
-      specialties: specialties.split(',').map((s) => s.trim()),
+      specialties: specialties.split(',').map((s) => s.trim()).filter(Boolean),
       pixKey,
     });
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 4000);
+    setShowPending(true);
   };
 
   return (
@@ -46,31 +46,42 @@ export const ArtisanStoreProfileView: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate(`/artesa/${currentArtisan.id}`)}
-          className="flex items-center gap-1.5 bg-[#FAF6F0] hover:bg-[#F2EAE0] text-[#8E3E19] border border-[#EADBCC] px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-        >
-          <span>Visualizar Loja Pública</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
+        {currentArtisan?.id && (
+          <button
+            onClick={() => navigate(`/artesa/${currentArtisan.id}`)}
+            className="flex items-center gap-1.5 bg-[#FAF6F0] hover:bg-[#F2EAE0] text-[#8E3E19] border border-[#EADBCC] px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            <span>Visualizar Loja Pública</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
-      {savedNotice && (
-        <div className="p-4 bg-[#EDF6F1] text-[#1A543E] rounded-2xl text-xs font-semibold border border-[#C5E3D2] flex items-center gap-2">
-          <Check className="w-4 h-4 shrink-0" />
-          <span>Perfil da sua loja atualizado com sucesso na vitrine pública!</span>
-        </div>
+      {showPending && (
+        <IntegrationPending
+          title="Atualização de Loja Pendente"
+          actionName="Perfil do Atelier"
+          description="Os dados do seu atelier foram validados com sucesso no front-end. A sincronização definitiva com o catálogo público será concluída após a conexão com o banco de dados Supabase."
+          onViewArchitecture={() => setIsArchitectureOpen(true)}
+          onClose={() => setShowPending(false)}
+        />
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCC] shadow-xs space-y-6">
         {/* Photo & Studio Basics */}
         <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-[#F2EAE0]">
           <div className="relative">
-            <img
-              src={currentArtisan.avatarUrl}
-              alt={currentArtisan.name}
-              className="w-24 h-24 rounded-3xl object-cover border-2 border-[#D9CDBF]"
-            />
+            <div className="w-24 h-24 rounded-3xl bg-[#FAF6F0] border-2 border-[#D9CDBF] flex items-center justify-center overflow-hidden">
+              {currentArtisan?.avatarUrl ? (
+                <img
+                  src={currentArtisan.avatarUrl}
+                  alt={currentArtisan.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Store className="w-8 h-8 text-[#8E3E19]" />
+              )}
+            </div>
             <div className="absolute -bottom-1 -right-1 bg-[#8E3E19] text-white p-1.5 rounded-full shadow-xs cursor-pointer">
               <Camera className="w-3.5 h-3.5" />
             </div>

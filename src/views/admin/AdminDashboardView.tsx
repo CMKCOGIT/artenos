@@ -11,9 +11,15 @@ import {
   ShieldCheck,
   Plus,
   ArrowRight,
+  Shield,
+  Package,
+  Store,
+  Building2,
+  Settings,
 } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const AdminDashboardView: React.FC = () => {
   const {
@@ -46,13 +52,13 @@ export const AdminDashboardView: React.FC = () => {
     }
   };
 
-  // Render view based on route or subtab
   const isUsuarios = currentRoute.includes('/admin/usuarios');
   const isArtesas = currentRoute.includes('/admin/artesas');
-  const isCategorias = currentRoute.includes('/admin/categorias');
-  const isComissao = currentRoute.includes('/admin/comissao');
+  const isFornecedores = currentRoute.includes('/admin/fornecedores');
+  const isProdutos = currentRoute.includes('/admin/produtos');
   const isPedidos = currentRoute.includes('/admin/pedidos');
-  const isDenuncias = currentRoute.includes('/admin/denuncias');
+  const isConfiguracoes = currentRoute.includes('/admin/configuracoes') || currentRoute.includes('/admin/comissao');
+  const isOverview = !isUsuarios && !isArtesas && !isFornecedores && !isProdutos && !isPedidos && !isConfiguracoes;
 
   return (
     <div className="space-y-8">
@@ -66,40 +72,40 @@ export const AdminDashboardView: React.FC = () => {
             Administração da Plataforma Artenós
           </h1>
           <p className="text-xs text-[#A8988B] mt-1">
-            Supervisão de transações em tempo real, credenciamento de ateliês e conformidade regulatória.
+            Supervisão de ateliês, catálogo de produtos, fornecedores e conformidade de pagamentos.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-xs">
-            <span className="text-[#8C7667] block text-[10px] uppercase font-semibold">Status do Gateway</span>
+          <div className="px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-left">
+            <span className="text-[#8C7667] block text-[10px] uppercase font-semibold">Segurança & Conformidade</span>
             <span className="text-emerald-400 font-bold flex items-center gap-1.5 mt-0.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Split Automático 90/10 Online
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              Ambiente Seguro
             </span>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards (Overview Real State: 0 Mocks) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#241E1B] p-5 rounded-2xl border border-[#3D332D]">
           <span className="text-xs text-[#A8988B] font-semibold block mb-1">Volume Bruto de Vendas (GMV)</span>
           <span className="text-2xl font-bold font-serif text-white tabular-nums block">
             {formatCurrency(platformSettings.totalGMVCents)}
           </span>
-          <span className="text-[11px] text-emerald-400 mt-2 block font-medium">
-            +24.8% no último mês
+          <span className="text-[10px] text-[#A8988B] mt-2 block font-medium">
+            {platformSettings.totalGMVCents > 0 ? 'Faturamento liquidado' : 'Nenhuma venda registrada'}
           </span>
         </div>
 
         <div className="bg-[#241E1B] p-5 rounded-2xl border border-[#3D332D]">
           <span className="text-xs text-[#A8988B] font-semibold block mb-1">Receita da Plataforma (Take Rate)</span>
           <span className="text-2xl font-bold font-serif text-amber-400 tabular-nums block">
-            {formatCurrency(totalRevenue || (platformSettings.totalGMVCents * 0.1))}
+            {formatCurrency(totalRevenue)}
           </span>
           <span className="text-[11px] text-[#A8988B] mt-2 block">
-            Taxa média: {platformSettings.commissionPercent}% por pedido
+            Taxa configurada: {platformSettings.commissionPercent}% por pedido
           </span>
         </div>
 
@@ -109,27 +115,25 @@ export const AdminDashboardView: React.FC = () => {
             {activeArtisans.length}
           </span>
           <span className="text-[11px] text-amber-400 mt-2 block font-semibold">
-            {pendingArtisans.length} aguardando aprovação
+            {pendingArtisans.length > 0 ? `${pendingArtisans.length} aguardando aprovação` : 'Nenhuma artesã pendente'}
           </span>
         </div>
 
         <div className="bg-[#241E1B] p-5 rounded-2xl border border-[#3D332D]">
-          <span className="text-xs text-[#A8988B] font-semibold block mb-1">Total de Pedidos Processados</span>
+          <span className="text-xs text-[#A8988B] font-semibold block mb-1">Total de Pedidos</span>
           <span className="text-2xl font-bold font-serif text-white tabular-nums block">
             {orders.length}
           </span>
-          <span className="text-[11px] text-emerald-400 mt-2 block">
-            100% de splits liquidados sem estorno
+          <span className="text-[10px] text-[#A8988B] mt-2 block">
+            {orders.length > 0 ? 'Splits liquidados' : 'Nenhum pedido processado'}
           </span>
         </div>
       </div>
 
-      {/* Conditional Sub-View Sections */}
-
-      {/* 1. Artesãs Approvals */}
-      {(isArtesas || (!isUsuarios && !isCategorias && !isComissao && !isPedidos && !isDenuncias)) && (
+      {/* 1. SEÇÃO /admin/artesas */}
+      {(isArtesas || isOverview) && (
         <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#3D332D]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#3D332D] gap-3">
             <div>
               <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
                 <UserCheck className="w-5 h-5 text-amber-400" />
@@ -151,11 +155,19 @@ export const AdminDashboardView: React.FC = () => {
             </button>
           </div>
 
-          {pendingArtisans.length === 0 ? (
+          {artisans.length === 0 ? (
             <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
-              <Check className="w-8 h-8 text-emerald-400 mx-auto" />
-              <p className="text-sm font-semibold text-white">Todas as artesãs estão aprovadas e ativas!</p>
-              <p className="text-xs text-[#A8988B]">Nenhuma solicitação de cadastro pendente no momento.</p>
+              <Store className="w-8 h-8 text-[#A8988B] mx-auto" />
+              <p className="text-sm font-semibold text-white">Nenhum ateliê cadastrado ainda</p>
+              <p className="text-xs text-[#A8988B]">
+                Quando as artesãs realizarem o cadastro na plataforma, seus ateliês e documentos aparecerão aqui para credenciamento.
+              </p>
+            </div>
+          ) : pendingArtisans.length === 0 ? (
+            <div className="p-6 text-center bg-black/20 rounded-2xl border border-white/5 space-y-1">
+              <Check className="w-6 h-6 text-emerald-400 mx-auto" />
+              <p className="text-sm font-semibold text-white">Todos os ateliês estão aprovados</p>
+              <p className="text-xs text-[#A8988B]">Nenhuma solicitação de credenciamento pendente.</p>
             </div>
           ) : (
             <div className="divide-y divide-[#3D332D]">
@@ -166,19 +178,16 @@ export const AdminDashboardView: React.FC = () => {
                     <div>
                       <h4 className="font-bold text-sm text-white">{artisan.name} · {artisan.studioName}</h4>
                       <p className="text-xs text-[#A8988B]">{artisan.location} · {artisan.specialties.join(', ')}</p>
-                      <p className="text-xs text-[#8C7667] mt-0.5 line-clamp-1 italic">"{artisan.story}"</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => approveArtisan(artisan.id)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Aprovar Ateliê</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => approveArtisan(artisan.id)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Aprovar Ateliê</span>
+                  </button>
                 </div>
               ))}
             </div>
@@ -186,13 +195,165 @@ export const AdminDashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Platform Commission & Split Controls */}
-      {(isComissao || (!isUsuarios && !isCategorias && !isArtesas && !isPedidos && !isDenuncias)) && (
+      {/* 2. SEÇÃO /admin/usuarios */}
+      {isUsuarios && (
+        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-6">
+          <div className="pb-3 border-b border-[#3D332D]">
+            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-amber-400" />
+              <span>Base Multiusuário da Artenós</span>
+            </h2>
+            <p className="text-xs text-[#A8988B]">
+              Gerenciamento dos perfis cadastrados de compradores, artesãs e fornecedores
+            </p>
+          </div>
+
+          <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+            <Users className="w-8 h-8 text-[#A8988B] mx-auto" />
+            <p className="text-sm font-semibold text-white">Nenhum usuário cadastrado ainda</p>
+            <p className="text-xs text-[#A8988B] max-w-md mx-auto">
+              A plataforma está em estado de pré-conexão com o banco de dados. Quando os primeiros compradores, artesãs e fornecedores realizarem cadastro, seus registros aparecerão listados aqui.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 3. SEÇÃO /admin/fornecedores */}
+      {isFornecedores && (
+        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-6">
+          <div className="pb-3 border-b border-[#3D332D]">
+            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+              <Shield className="w-5 h-5 text-amber-400" />
+              <span>Fornecedores de Insumos e Matérias-Primas Homologados</span>
+            </h2>
+            <p className="text-xs text-[#A8988B]">
+              Empresas que vendem fios, argilas e insumos em lote para a rede de artesãs
+            </p>
+          </div>
+
+          {supplierCompany.name ? (
+            <div className="p-4 bg-black/20 rounded-2xl border border-white/5 flex items-center justify-between text-xs">
+              <div>
+                <h4 className="font-bold text-white text-sm">{supplierCompany.name}</h4>
+                <p className="text-[#A8988B]">CNPJ: {supplierCompany.cnpj || 'Não informado'} · Categoria: {supplierCompany.category}</p>
+                <p className="text-[#8C7667]">Contato: {supplierCompany.email} | {supplierCompany.phone}</p>
+              </div>
+              <span className="px-2.5 py-1 bg-emerald-950 text-emerald-300 rounded-full font-bold">
+                {supplierCompany.verified ? 'Homologado' : 'Pendente de Validação'}
+              </span>
+            </div>
+          ) : (
+            <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+              <Building2 className="w-8 h-8 text-[#A8988B] mx-auto" />
+              <p className="text-sm font-semibold text-white">Nenhum fornecedor cadastrado ainda</p>
+              <p className="text-xs text-[#A8988B]">
+                Quando indústrias e fornecedores homologarem suas contas no portal B2B, eles aparecerão aqui para supervisão.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. SEÇÃO /admin/produtos */}
+      {isProdutos && (
+        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-6">
+          <div className="pb-3 border-b border-[#3D332D]">
+            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+              <Tag className="w-5 h-5 text-amber-400" />
+              <span>Catálogo Global de Peças Artesanais</span>
+            </h2>
+            <p className="text-xs text-[#A8988B]">
+              Auditoria de produtos cadastrados pelas artesãs na vitrine pública
+            </p>
+          </div>
+
+          {products.length === 0 ? (
+            <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+              <Package className="w-8 h-8 text-[#A8988B] mx-auto" />
+              <p className="text-sm font-semibold text-white">Nenhum produto cadastrado no catálogo</p>
+              <p className="text-xs text-[#A8988B]">
+                Peças cadastradas pelas artesãs nos seus ateliês ficarão disponíveis para auditoria nesta seção.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#3D332D]">
+              {products.map((p) => (
+                <div key={p.id} className="py-3 flex items-center justify-between text-xs text-[#A8988B]">
+                  <div>
+                    <h4 className="font-bold text-white text-sm">{p.title}</h4>
+                    <p>{p.category} · {p.artisanName}</p>
+                  </div>
+                  <span className="font-bold text-white tabular-nums">{formatCurrency(p.priceCents)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. SEÇÃO /admin/pedidos */}
+      {isPedidos && (
         <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
           <div className="pb-3 border-b border-[#3D332D]">
             <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
-              <Percent className="w-5 h-5 text-amber-400" />
-              <span>Configuração do Split e Take Rate</span>
+              <Receipt className="w-5 h-5 text-amber-400" />
+              <span>Auditoria de Transações e Splits Bancários</span>
+            </h2>
+            <p className="text-xs text-[#A8988B]">
+              Histórico detalhado de pagamentos recebidos, comissão retida e liquidação para a artesã
+            </p>
+          </div>
+
+          {orders.length === 0 ? (
+            <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+              <Receipt className="w-8 h-8 text-[#A8988B] mx-auto" />
+              <p className="text-sm font-semibold text-white">Nenhum pedido realizado ainda</p>
+              <p className="text-xs text-[#A8988B]">
+                Quando compras forem efetuadas no checkout, os detalhes financeiros e splits bancários aparecerão nesta tabela.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-[#A8988B]">
+                <thead className="text-[10px] uppercase text-[#8C7667] border-b border-[#3D332D]">
+                  <tr>
+                    <th className="py-2.5">Pedido</th>
+                    <th className="py-2.5">Cliente</th>
+                    <th className="py-2.5">Total</th>
+                    <th className="py-2.5 text-emerald-400">Repasse Artesã</th>
+                    <th className="py-2.5 text-amber-400">Taxa Artenós</th>
+                    <th className="py-2.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#3D332D]">
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-white/5">
+                      <td className="py-3 font-mono font-bold text-white">{order.orderNumber}</td>
+                      <td className="py-3 text-white">{order.clientName}</td>
+                      <td className="py-3 font-semibold text-white">{formatCurrency(order.totalCents)}</td>
+                      <td className="py-3 font-bold text-emerald-400">{formatCurrency(order.artisanPayoutCents)}</td>
+                      <td className="py-3 font-bold text-amber-400">{formatCurrency(order.platformFeeCents)}</td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white">
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 6. SEÇÃO /admin/configuracoes */}
+      {(isConfiguracoes || isOverview) && (
+        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
+          <div className="pb-3 border-b border-[#3D332D]">
+            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+              <Settings className="w-5 h-5 text-amber-400" />
+              <span>Configuração do Split e Taxas da Plataforma</span>
             </h2>
             <p className="text-xs text-[#A8988B]">
               Define a divisão automática de pagamentos entre a artesã (ex: 90%) e a Artenós (ex: 10%)
@@ -234,135 +395,7 @@ export const AdminDashboardView: React.FC = () => {
 
           <div className="p-4 bg-black/20 rounded-2xl border border-white/5 text-xs text-[#A8988B] flex items-center justify-between">
             <span>Repasse Líquido Médio para Artesãs: <strong>{(100 - platformSettings.commissionPercent).toFixed(1)}%</strong></span>
-            <span>Segurança: <strong>Contrato com certificação PCI-DSS & Banco Central</strong></span>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Orders & Splits */}
-      {(isPedidos || (!isUsuarios && !isCategorias && !isArtesas && !isComissao && !isDenuncias)) && (
-        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
-          <div className="pb-3 border-b border-[#3D332D]">
-            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-amber-400" />
-              <span>Auditoria de Transações e Splits Bancários</span>
-            </h2>
-            <p className="text-xs text-[#A8988B]">
-              Histórico detalhado de pagamentos recebidos, comissão retida e liquidação para a artesã
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-[#A8988B]">
-              <thead className="text-[10px] uppercase text-[#8C7667] border-b border-[#3D332D]">
-                <tr>
-                  <th className="py-2.5">Pedido</th>
-                  <th className="py-2.5">Cliente</th>
-                  <th className="py-2.5">Total</th>
-                  <th className="py-2.5 text-emerald-400">Repasse Artesã</th>
-                  <th className="py-2.5 text-amber-400">Taxa Artenós</th>
-                  <th className="py-2.5">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#3D332D]">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-white/5">
-                    <td className="py-3 font-mono font-bold text-white">{order.orderNumber}</td>
-                    <td className="py-3 text-white">{order.clientName}</td>
-                    <td className="py-3 font-semibold text-white">{formatCurrency(order.totalCents)}</td>
-                    <td className="py-3 font-bold text-emerald-400">{formatCurrency(order.artisanPayoutCents)}</td>
-                    <td className="py-3 font-bold text-amber-400">{formatCurrency(order.platformFeeCents)}</td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white">
-                        {order.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Users Table */}
-      {isUsuarios && (
-        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
-          <div className="pb-3 border-b border-[#3D332D]">
-            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-amber-400" />
-              <span>Base Multiusuário da Artenós</span>
-            </h2>
-            <p className="text-xs text-[#A8988B]">
-              Visão consolidada de Compradores, Artesãs Credenciadas e Fornecedores de Insumos
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-black/20 rounded-2xl border border-white/5 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-[#E5A882] block">Compradores (Clientes)</span>
-              <p className="text-xl font-bold text-white">1.420 cadastrados</p>
-              <p className="text-xs text-[#A8988B]">Taxa de recompra: 38%</p>
-            </div>
-
-            <div className="p-4 bg-black/20 rounded-2xl border border-white/5 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 block">Artesãs Parceiras</span>
-              <p className="text-xl font-bold text-white">{artisans.length} ateliês</p>
-              <p className="text-xs text-[#A8988B]">Em 8 estados brasileiros</p>
-            </div>
-
-            <div className="p-4 bg-black/20 rounded-2xl border border-white/5 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-amber-400 block">Fornecedores Homologados</span>
-              <p className="text-xl font-bold text-white">1 homologado</p>
-              <p className="text-xs text-[#A8988B]">{supplierCompany.name}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Categories Management */}
-      {isCategorias && (
-        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
-          <div className="pb-3 border-b border-[#3D332D]">
-            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
-              <Tag className="w-5 h-5 text-amber-400" />
-              <span>Categorias Oficiais de Artesanato</span>
-            </h2>
-            <p className="text-xs text-[#A8988B]">
-              Taxonomia artesanal protegida para indexação e busca inteligente
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {['Crochê & Amigurumi', 'Cerâmica & Argila', 'Bordado Livre & Bastidor', 'Macramê & Nós'].map((cat) => (
-              <div key={cat} className="p-4 bg-black/20 rounded-2xl border border-white/5 flex items-center justify-between">
-                <span className="font-semibold text-white text-xs">{cat}</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
-                  Ativa
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 6. Denuncias & Suporte */}
-      {isDenuncias && (
-        <div className="bg-[#241E1B] rounded-3xl border border-[#3D332D] p-6 space-y-4">
-          <div className="pb-3 border-b border-[#3D332D]">
-            <h2 className="font-serif font-bold text-lg text-white flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-400" />
-              <span>Ouvidoria, Denúncias e Qualidade</span>
-            </h2>
-            <p className="text-xs text-[#A8988B]">
-              Canal de mediação para produtos fora do padrão artesanal e disputas de envio
-            </p>
-          </div>
-
-          <div className="p-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
-            <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-            <p className="text-sm font-semibold text-white">Nenhuma denúncia aberta ou disputa pendente</p>
-            <p className="text-xs text-[#A8988B]">Índice de satisfação da comunidade Artenós: 99.4%</p>
+            <span>Segurança: <strong>PCI-DSS & Banco Central (Split Automático)</strong></span>
           </div>
         </div>
       )}

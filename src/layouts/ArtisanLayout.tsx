@@ -19,6 +19,7 @@ import {
   LogOut,
   PhoneCall,
   Home,
+  Database,
 } from 'lucide-react';
 import { useMarketplace } from '../store/marketplaceStore';
 
@@ -45,7 +46,17 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
 
   const artisanSession = sessions.artisan;
 
-  const artisanProducts = products.filter((p) => p.artisanId === currentArtisan.id);
+  const artisanName = currentArtisan?.name || artisanSession?.name || 'Mestra Artesã';
+  const artisanStudio = currentArtisan?.studioName || artisanSession?.studioName || 'Meu Ateliê';
+  const artisanLocation = currentArtisan?.location || artisanSession?.location || 'Brasil';
+  const artisanAvatar = currentArtisan?.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80';
+  const artisanRating = currentArtisan?.rating || 5.0;
+  const artisanTotalSales = currentArtisan?.totalSales || 0;
+  const artisanId = currentArtisan?.id || 'artisan-current';
+
+  const artisanProducts = currentArtisan
+    ? products.filter((p) => p.artisanId === currentArtisan.id)
+    : products;
   const lowStockCount = artisanProducts.filter((p) => p.stock <= 1).length;
   const pendingOrdersCount = orders.filter((o) => o.status === 'paid' || o.status === 'in_production').length;
   const unreadMessagesCount = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
@@ -111,7 +122,7 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
       <div className="bg-[#2D1F18] text-[#FDF8F3] px-3 sm:px-6 py-2 text-xs flex items-center justify-between flex-wrap gap-2 border-b border-[#47362B]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="font-semibold truncate max-w-[160px] sm:max-w-none">{currentArtisan.studioName}</span>
+          <span className="font-semibold truncate max-w-[160px] sm:max-w-none">{artisanStudio}</span>
           <span className="text-white/40 hidden xs:inline">·</span>
           <span className="text-white/70 hidden sm:inline text-[11px]">Painel da Artesã</span>
         </div>
@@ -127,7 +138,7 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
           </button>
           <span className="text-white/30 hidden xs:inline">|</span>
           <button
-            onClick={() => handleNavClick(`/artesa/${currentArtisan.id}`)}
+            onClick={() => handleNavClick(`/artesa/${artisanId}`)}
             className="flex items-center gap-1 text-[11px] text-white/90 hover:text-white cursor-pointer"
             title="Ver como os clientes enxergam seu ateliê"
           >
@@ -157,16 +168,16 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
       <div className="md:hidden bg-white px-4 py-2.5 border-b border-[#EADBCC] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <img
-            src={currentArtisan.avatarUrl}
-            alt={currentArtisan.name}
+            src={artisanAvatar}
+            alt={artisanName}
             className="w-8 h-8 rounded-full object-cover border border-[#D9CDBF]"
           />
           <div>
             <h2 className="font-bold text-xs text-[#2D241E] leading-tight truncate max-w-[180px]">
-              {currentArtisan.name}
+              {artisanName}
             </h2>
             <span className="text-[10px] text-[#8E3E19] font-medium block">
-              ★ {currentArtisan.rating} · {currentArtisan.studioName}
+              ★ {artisanRating} · {artisanStudio}
             </span>
           </div>
         </div>
@@ -194,13 +205,13 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
               <div className="p-4 bg-[#FAF6F0] border-b border-[#EADBCC] flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <img
-                    src={currentArtisan.avatarUrl}
-                    alt={currentArtisan.name}
+                    src={artisanAvatar}
+                    alt={artisanName}
                     className="w-10 h-10 rounded-full object-cover border border-[#D9CDBF]"
                   />
                   <div>
-                    <h3 className="font-bold text-xs text-[#2D241E]">{currentArtisan.name}</h3>
-                    <span className="text-[10px] text-[#8E3E19] block">{currentArtisan.location}</span>
+                    <h3 className="font-bold text-xs text-[#2D241E]">{artisanName}</h3>
+                    <span className="text-[10px] text-[#8E3E19] block">{artisanLocation}</span>
                   </div>
                 </div>
 
@@ -261,7 +272,7 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
                 </span>
 
                 <button
-                  onClick={() => handleNavClick(`/artesa/${currentArtisan.id}`)}
+                  onClick={() => handleNavClick(`/artesa/${artisanId}`)}
                   className="w-full flex items-center gap-2 text-xs text-[#5C4A3E] hover:text-[#8E3E19] p-2 rounded-xl hover:bg-[#FAF6F0] cursor-pointer"
                 >
                   <ExternalLink className="w-4 h-4 text-[#8C7667]" />
@@ -327,14 +338,14 @@ export const ArtisanLayout: React.FC<ArtisanLayoutProps> = ({ children }) => {
             {/* Atelier Identity Card */}
             <div className="flex items-center gap-3 p-3 bg-[#FAF6F0] rounded-2xl border border-[#EADBCC]">
               <img
-                src={currentArtisan.avatarUrl}
-                alt={currentArtisan.name}
+                src={artisanAvatar}
+                alt={artisanName}
                 className="w-11 h-11 rounded-full object-cover border border-[#D9CDBF]"
               />
               <div className="min-w-0">
-                <h3 className="font-bold text-xs text-[#2D241E] truncate">{currentArtisan.name}</h3>
-                <span className="text-[10px] text-[#8E3E19] font-medium block truncate">{currentArtisan.location}</span>
-                <span className="text-[10px] text-emerald-700 font-bold">★ {currentArtisan.rating} ({currentArtisan.totalSales} vendas)</span>
+                <h3 className="font-bold text-xs text-[#2D241E] truncate">{artisanName}</h3>
+                <span className="text-[10px] text-[#8E3E19] font-medium block truncate">{artisanLocation}</span>
+                <span className="text-[10px] text-emerald-700 font-bold">★ {artisanRating} ({artisanTotalSales} vendas)</span>
               </div>
             </div>
 

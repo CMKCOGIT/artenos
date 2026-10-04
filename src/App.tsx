@@ -48,6 +48,18 @@ import { AdminDashboardView } from './views/admin/AdminDashboardView';
 import { ArchitectureModal } from './components/ArchitectureModal';
 import { AssistedSignupModal } from './components/AssistedSignupModal';
 import { PlatformOnboardingModal } from './components/PlatformOnboardingModal';
+import { IntegrationPendingModal } from './components/common/IntegrationPendingModal';
+
+const GlobalModals: React.FC = () => {
+  return (
+    <>
+      <ArchitectureModal />
+      <AssistedSignupModal />
+      <PlatformOnboardingModal />
+      <IntegrationPendingModal />
+    </>
+  );
+};
 
 const MarketplaceRouter: React.FC = () => {
   const { currentRole, currentRoute, sessions, navigate } = useMarketplace();
@@ -269,9 +281,7 @@ export default function App() {
   return (
     <MarketplaceProvider>
       <MarketplaceRouter />
-      <ArchitectureModal />
-      <AssistedSignupModal />
-      <PlatformOnboardingModal />
+      <GlobalModals />
     </MarketplaceProvider>
   );
 }

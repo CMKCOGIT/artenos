@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Paperclip, CheckCheck, Check, MessageSquare, ExternalLink, ArrowLeft } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const CustomerChatView: React.FC = () => {
   const {
@@ -10,16 +11,16 @@ export const CustomerChatView: React.FC = () => {
     setActiveConversation,
     messages,
     sendMessage,
-    customerProfile,
     products,
     navigate,
+    notifyPendingIntegration,
   } = useMarketplace();
 
   const [input, setInput] = useState('');
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const currentConv = activeConversation || conversations[0];
+  const currentConv = activeConversation || (conversations.length > 0 ? conversations[0] : null);
   const currentMessages = currentConv ? messages[currentConv.id] || [] : [];
   const linkedProduct = currentConv?.productId
     ? products.find((p) => p.id === currentConv.productId)
@@ -41,6 +42,29 @@ export const CustomerChatView: React.FC = () => {
     setInput('');
   };
 
+  if (conversations.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-serif text-[#2D241E]">
+            Minhas Mensagens
+          </h1>
+          <p className="text-xs text-[#6B5A4E]">
+            Converse diretamente com as artesãs para tirar dúvidas e negociar personalizações
+          </p>
+        </div>
+
+        <EmptyState
+          icon={MessageSquare}
+          title="Você ainda não possui conversas"
+          description="Você pode iniciar uma conversa direta com qualquer artesã na página do produto para tirar dúvidas sobre materiais, prazos e personalizações sob medida."
+          actionText="Explorar Vitrine de Peças"
+          onAction={() => navigate('/produtos')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4 sm:space-y-6">
       <div>
@@ -61,7 +85,7 @@ export const CustomerChatView: React.FC = () => {
         >
           <div className="p-4 border-b border-[#EADBCC]">
             <span className="text-xs font-bold uppercase tracking-wider text-[#8E3E19]">
-              Conversas Abertas ({conversations.length})
+              Conversas ({conversations.length})
             </span>
           </div>
 
@@ -86,10 +110,12 @@ export const CustomerChatView: React.FC = () => {
                       <span className="font-bold text-[#2D241E] truncate">{conv.artisanName}</span>
                       <span className="text-[10px] text-[#8C7667]">{conv.updatedAt}</span>
                     </div>
-                    <span className="text-[11px] text-[#8E3E19] font-medium block truncate">
-                      {conv.productTitle}
-                    </span>
-                    <p className="text-xs text-[#6B5A4E] truncate mt-0.5">{conv.lastMessage}</p>
+                    {conv.productTitle && (
+                      <span className="text-[11px] font-semibold text-[#8E3E19] truncate block mb-0.5">
+                        peça: {conv.productTitle}
+                      </span>
+                    )}
+                    <p className="text-xs text-[#6B5A4E] truncate">{conv.lastMessage}</p>
                   </div>
                 </button>
               );
@@ -97,117 +123,106 @@ export const CustomerChatView: React.FC = () => {
           </div>
         </div>
 
-        {/* Message Window */}
+        {/* Chat Messages Pane */}
         {currentConv ? (
           <div
             className={`${
               mobilePane === 'list' ? 'hidden md:flex' : 'flex'
-            } flex-1 flex-col bg-[#FCFAF7] min-w-0`}
+            } flex-1 flex-col bg-white overflow-hidden`}
           >
-            {/* Chat Header */}
-            <div className="p-3 sm:p-4 bg-white border-b border-[#EADBCC] flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Top Bar */}
+            <div className="p-3.5 sm:p-4 border-b border-[#EADBCC] bg-[#FAF6F0] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setMobilePane('list')}
-                  className="md:hidden p-1.5 text-[#5C4A3E] hover:text-[#2D241E] rounded-lg hover:bg-[#FAF6F0] cursor-pointer"
-                  title="Voltar à lista"
+                  className="md:hidden p-1.5 rounded-lg text-[#8C7667] hover:text-[#2D241E] hover:bg-white/60"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-
                 <img
                   src={currentConv.artisanAvatar}
                   alt={currentConv.artisanName}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-[#D9CDBF] shrink-0"
+                  className="w-10 h-10 rounded-full object-cover border border-[#D9CDBF]"
                 />
-                <div className="min-w-0">
-                  <h3 className="font-bold text-xs sm:text-sm text-[#2D241E] truncate">{currentConv.artisanName}</h3>
-                  <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Online no Atelier
+                <div>
+                  <h3 className="text-sm font-bold text-[#2D241E] leading-tight">
+                    {currentConv.artisanName}
+                  </h3>
+                  <span className="text-[11px] text-[#1A543E] font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1A543E]" />
+                    Online
                   </span>
                 </div>
               </div>
 
               {linkedProduct && (
-                <button
+                <div
                   onClick={() => navigate(`/produto/${linkedProduct.id}`)}
-                  className="text-[11px] sm:text-xs font-semibold text-[#8E3E19] hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                  className="flex items-center gap-2 p-1.5 pr-2.5 bg-white rounded-xl border border-[#EADBCC] cursor-pointer hover:border-[#8E3E19] transition-colors"
                 >
-                  <span className="hidden sm:inline">Ver Produto</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Linked Product Banner */}
-            {linkedProduct && (
-              <div className="bg-[#FAF6F0] px-4 py-2 border-b border-[#EADBCC] flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <img src={linkedProduct.imageUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                  <div>
-                    <span className="font-bold text-[#2D241E]">{linkedProduct.title}</span>
-                    <span className="text-[11px] text-[#8E3E19] ml-2 font-bold tabular-nums">
+                  <img
+                    src={linkedProduct.imageUrl}
+                    alt={linkedProduct.title}
+                    className="w-8 h-8 rounded-lg object-cover"
+                  />
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-[#2D241E] truncate block max-w-32">
+                      {linkedProduct.title}
+                    </span>
+                    <span className="text-[10px] text-[#8E3E19] font-bold">
                       {formatCurrency(linkedProduct.priceCents)}
                     </span>
                   </div>
+                  <ExternalLink className="w-3 h-3 text-[#8C7667]" />
                 </div>
-                <span className="text-[10px] text-[#8C7667]">
-                  Prazo: {linkedProduct.productionDays} dias úteis
-                </span>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-              {currentMessages.map((msg) => {
-                const isMe = msg.senderRole === 'customer';
-                return (
-                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+            {/* Messages Scroll Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-[#FAF8F5]">
+              {currentMessages.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-[#8C7667]">
+                  Inicie uma conversa digitando abaixo.
+                </div>
+              ) : (
+                currentMessages.map((msg) => {
+                  const isMe = msg.senderRole === 'customer';
+                  return (
                     <div
-                      className={`max-w-[75%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
-                        isMe
-                          ? 'bg-[#8E3E19] text-[#FAF6F0] rounded-br-xs'
-                          : 'bg-white text-[#2D241E] border border-[#EADBCC] rounded-bl-xs'
-                      }`}
+                      key={msg.id}
+                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
                       <div
-                        className={`mt-1 text-[10px] flex items-center justify-end gap-1 ${
-                          isMe ? 'text-white/80' : 'text-[#8C7667]'
+                        className={`max-w-[80%] sm:max-w-md p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                          isMe
+                            ? 'bg-[#8E3E19] text-white rounded-br-xs'
+                            : 'bg-white text-[#2D241E] border border-[#EADBCC] rounded-bl-xs shadow-2xs'
                         }`}
                       >
+                        {msg.content}
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-[#8C7667] mt-1 px-1">
                         <span>{msg.timestamp}</span>
-                        {isMe && <CheckCheck className="w-3 h-3 text-[#E8D0C0]" />}
+                        {isMe && <CheckCheck className="w-3 h-3 text-[#8E3E19]" />}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Prompts */}
-            <div className="px-4 py-1.5 bg-[#FAF6F0] border-t border-[#EADBCC] flex items-center gap-1.5 overflow-x-auto text-[11px]">
-              <span className="text-[#8C7667] font-semibold whitespace-nowrap">Sugestões:</span>
-              {[
-                'Tem outras opções de cores?',
-                'Qual o prazo de envio para o meu CEP?',
-                'Faz tamanho personalizado sob medida?',
-              ].map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => sendMessage(currentConv.id, chip)}
-                  className="bg-white hover:bg-[#FAF6F0] border border-[#D9CDBF] rounded-full px-2.5 py-0.5 text-[#5C4A3E] whitespace-nowrap cursor-pointer"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
+            {/* Input Footer */}
+            <form onSubmit={handleSend} className="p-3 border-t border-[#EADBCC] bg-white flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => notifyPendingIntegration('Anexo no Chat', 'Envio de imagens/anexos será ativado com Supabase Storage.')}
+                className="p-2 text-[#8C7667] hover:text-[#2D241E] rounded-xl hover:bg-[#FAF6F0] cursor-pointer"
+                title="Anexar foto"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
 
-            {/* Input Bar */}
-            <form onSubmit={handleSend} className="p-4 bg-white border-t border-[#EADBCC] flex items-center gap-2">
               <input
                 type="text"
                 value={input}
@@ -215,17 +230,19 @@ export const CustomerChatView: React.FC = () => {
                 placeholder="Escreva sua mensagem para a artesã..."
                 className="flex-1 bg-[#FAF6F0] border border-[#D9CDBF] rounded-xl px-4 py-2.5 text-xs sm:text-sm text-[#2D241E] focus:outline-none focus:ring-1 focus:ring-[#8E3E19]"
               />
+
               <button
                 type="submit"
-                className="bg-[#8E3E19] hover:bg-[#733113] text-white p-2.5 rounded-xl cursor-pointer shadow-xs"
+                disabled={!input.trim()}
+                className="bg-[#8E3E19] hover:bg-[#733113] disabled:opacity-40 text-white p-2.5 rounded-xl transition-colors cursor-pointer"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-center p-8 text-xs text-[#8C7667]">
-            Selecione uma conversa para começar
+          <div className="flex-1 flex items-center justify-center text-xs text-[#8C7667]">
+            Selecione uma conversa para visualizar as mensagens.
           </div>
         )}
       </div>

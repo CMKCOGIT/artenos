@@ -2,6 +2,7 @@ import React from 'react';
 import { Package, Truck, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const CustomerOrdersView: React.FC = () => {
   const { orders, navigate } = useMarketplace();
@@ -12,6 +13,7 @@ export const CustomerOrdersView: React.FC = () => {
     in_production: { label: 'Em Confecção pela Artesã', step: 3, color: 'text-purple-700 bg-purple-50 border-purple-200' },
     shipped: { label: 'Enviado / A Caminho', step: 4, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
     completed: { label: 'Entregue com Sucesso', step: 5, color: 'text-green-800 bg-green-50 border-green-200' },
+    cancelled: { label: 'Cancelado', step: 0, color: 'text-red-700 bg-red-50 border-red-200' },
   };
 
   return (
@@ -26,17 +28,13 @@ export const CustomerOrdersView: React.FC = () => {
       </div>
 
       {orders.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-[#EADBCC] space-y-3">
-          <Package className="w-12 h-12 text-[#C4B5A5] mx-auto" />
-          <h3 className="font-serif font-bold text-base text-[#2D241E]">Você ainda não fez nenhum pedido</h3>
-          <p className="text-xs text-[#6B5A4E]">Navegue pela nossa vitrine para apoiar mestras artesãs do Brasil.</p>
-          <button
-            onClick={() => navigate('/produtos')}
-            className="bg-[#8E3E19] text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
-          >
-            Explorar Produtos
-          </button>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Você ainda não possui pedidos"
+          description="Quando você realizar compras na Artenós, você poderá acompanhar todo o pipeline de produção e código de rastreamento das peças aqui."
+          actionText="Explorar Vitrine de Peças"
+          onAction={() => navigate('/produtos')}
+        />
       ) : (
         <div className="space-y-6">
           {orders.map((order) => {

@@ -48,13 +48,13 @@ export const SupplierAuthView: React.FC<SupplierAuthViewProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = login({
+    try {
+      const res = await login({
         email: loginEmail,
         password: loginPassword,
         role: 'supplier',
@@ -70,16 +70,19 @@ export const SupplierAuthView: React.FC<SupplierAuthViewProps> = ({
       } else {
         setErrorMsg(res.error || 'Credenciais inválidas.');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err?.message || 'Erro ao autenticar.');
+    }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = register({
+    try {
+      const res = await register({
         role: 'supplier',
         name: companyName,
         companyName,
@@ -101,27 +104,28 @@ export const SupplierAuthView: React.FC<SupplierAuthViewProps> = ({
       } else {
         setErrorMsg(res.error || 'Erro ao credenciar empresa.');
       }
-    }, 500);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err?.message || 'Erro ao registrar.');
+    }
   };
 
-  const handleDemoLogin = () => {
+  const handleDemoLogin = async () => {
     setLoginEmail('comercial@fiosbrasil.ind.br');
     setLoginPassword('••••••••');
     setIsLoading(true);
 
+    await login({
+      email: 'comercial@fiosbrasil.ind.br',
+      password: 'demo',
+      role: 'supplier',
+    });
+    setIsLoading(false);
+    setSuccessMsg('Conectado como Fios & Fibras Brasil Indústria!');
     setTimeout(() => {
-      login({
-        email: 'comercial@fiosbrasil.ind.br',
-        password: 'demo',
-        role: 'supplier',
-      });
-      setIsLoading(false);
-      setSuccessMsg('Conectado como Fios & Fibras Brasil Indústria!');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        else navigate('/fornecedor/dashboard');
-      }, 700);
-    }, 300);
+      if (onSuccess) onSuccess();
+      else navigate('/fornecedor/dashboard');
+    }, 700);
   };
 
   return (

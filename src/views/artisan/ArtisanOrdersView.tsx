@@ -2,9 +2,10 @@ import React from 'react';
 import { ShoppingBag, Truck, CheckCircle2, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const ArtisanOrdersView: React.FC = () => {
-  const { orders, updateOrderStatus, currentArtisan } = useMarketplace();
+  const { orders, updateOrderStatus, currentArtisan, navigate } = useMarketplace();
 
   return (
     <div className="space-y-8">
@@ -17,7 +18,16 @@ export const ArtisanOrdersView: React.FC = () => {
         </p>
       </div>
 
-      <div className="space-y-4">
+      {orders.length === 0 ? (
+        <EmptyState
+          icon={ShoppingBag}
+          title="Você ainda não possui pedidos"
+          description="Quando compradores realizarem pedidos das suas peças na vitrine da Artenós, eles aparecerão aqui com os detalhes de confecção, prazos e endereço de entrega."
+          actionText="Cadastrar Peças no Catálogo"
+          onAction={() => navigate('/artesa/produtos')}
+        />
+      ) : (
+        <div className="space-y-4">
         {orders.map((order) => {
           const statusLabels: Record<string, { label: string; color: string }> = {
             created: { label: 'Pedido Criado', color: 'bg-amber-100 text-amber-900 border-amber-300' },
@@ -111,6 +121,7 @@ export const ArtisanOrdersView: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, CheckCheck, MessageSquare, ExternalLink, Paperclip, ArrowLeft } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const ArtisanMessagesView: React.FC = () => {
   const {
@@ -52,6 +53,15 @@ export const ArtisanMessagesView: React.FC = () => {
         </p>
       </div>
 
+      {conversations.length === 0 ? (
+        <EmptyState
+          icon={MessageSquare}
+          title="Nenhuma conversa iniciada"
+          description="Quando compradores ou clientes interessados enviarem dúvidas sobre suas criações ou solicitarem personalizações sob medida, o chat em tempo real aparecerá aqui."
+          actionText="Ver Minhas Peças Cadastradas"
+          onAction={() => navigate('/artesa/produtos')}
+        />
+      ) : (
       <div className="bg-white rounded-3xl border border-[#EADBCC] shadow-sm h-[600px] sm:h-[650px] flex overflow-hidden">
         {/* Conversations List */}
         <div
@@ -217,6 +227,7 @@ export const ArtisanMessagesView: React.FC = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

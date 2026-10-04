@@ -2,6 +2,7 @@ import React from 'react';
 import { Heart, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency } from '../../utils/formatters';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const CustomerFavoritesView: React.FC = () => {
   const {
@@ -13,7 +14,7 @@ export const CustomerFavoritesView: React.FC = () => {
   } = useMarketplace();
 
   const favoriteProducts = products.filter((p) =>
-    customerProfile.favoriteProductIds.includes(p.id)
+    customerProfile.favoriteProductIds?.includes(p.id)
   );
 
   return (
@@ -28,17 +29,13 @@ export const CustomerFavoritesView: React.FC = () => {
       </div>
 
       {favoriteProducts.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-[#EADBCC] space-y-3">
-          <Heart className="w-12 h-12 text-[#C4B5A5] mx-auto" />
-          <h3 className="font-serif font-bold text-base text-[#2D241E]">Nenhuma peça salva ainda</h3>
-          <p className="text-xs text-[#6B5A4E]">Clique no ícone de coração em qualquer peça para salvar aqui.</p>
-          <button
-            onClick={() => navigate('/produtos')}
-            className="bg-[#8E3E19] text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
-          >
-            Explorar Produtos
-          </button>
-        </div>
+        <EmptyState
+          icon={Heart}
+          title="Sua lista de favoritos está vazia"
+          description="Clique no ícone de coração nas criações da vitrine para guardar suas peças preferidas e acompanhar encomendas."
+          actionText="Explorar Vitrine de Peças"
+          onAction={() => navigate('/produtos')}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {favoriteProducts.map((prod) => (

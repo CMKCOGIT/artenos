@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, Sparkles, Tag, Check, Layers } from 'lucide-react';
 import { useMarketplace } from '../../store/marketplaceStore';
 import { formatCurrency, parseBRLToCents } from '../../utils/formatters';
 import { craftPlaceholders } from '../../utils/craftAssets';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const SupplierMaterialsView: React.FC = () => {
   const {
@@ -10,44 +11,58 @@ export const SupplierMaterialsView: React.FC = () => {
     addSupplierMaterial,
     deleteSupplierMaterial,
     supplierCompany,
+    currentRoute,
+    navigate,
   } = useMarketplace();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(() => currentRoute === '/fornecedor/materiais/novo');
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Linhas & Fios');
   const [description, setDescription] = useState('');
-  const [unit, setUnit] = useState('rolo 500g');
-  const [priceBRL, setPriceBRL] = useState('28,50');
-  const [stockQty, setStockQty] = useState('50');
-  const [batchCode, setBatchCode] = useState('LT-2026-F12');
-  const [shadeTone, setShadeTone] = useState('Banho 06 - Terracota Cru Especial');
-  const [minOrderQty, setMinOrderQty] = useState('2');
+  const [unit, setUnit] = useState('');
+  const [priceBRL, setPriceBRL] = useState('');
+  const [stockQty, setStockQty] = useState('');
+  const [batchCode, setBatchCode] = useState('');
+  const [shadeTone, setShadeTone] = useState('');
+  const [minOrderQty, setMinOrderQty] = useState('');
+
+  useEffect(() => {
+    if (currentRoute === '/fornecedor/materiais/novo') {
+      setIsModalOpen(true);
+    }
+  }, [currentRoute]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     addSupplierMaterial({
-      supplierId: supplierCompany.id,
-      supplierName: supplierCompany.name,
-      companyName: supplierCompany.name,
+      supplierId: supplierCompany.id || 'supplier-current',
+      supplierName: supplierCompany.name || 'Fornecedor Parceiro',
+      companyName: supplierCompany.name || 'Fornecedor Parceiro',
       name,
       category,
       description: description || name,
-      priceCents: parseBRLToCents(priceBRL) || 2850,
-      unit,
-      stockStatus: parseInt(stockQty) > 0 ? 'Em estoque / Pronta entrega' : 'Esgotado',
-      stockQty: parseInt(stockQty) || 10,
-      location: supplierCompany.location,
+      priceCents: parseBRLToCents(priceBRL) || 0,
+      unit: unit || 'unidade',
+      stockStatus: (parseInt(stockQty) || 0) > 0 ? 'Em estoque / Pronta entrega' : 'Esgotado',
+      stockQty: parseInt(stockQty) || 0,
+      location: supplierCompany.location || 'Brasil',
       minOrderQty: parseInt(minOrderQty) || 1,
-      batchCode,
-      shadeTone,
+      batchCode: batchCode || undefined,
+      shadeTone: shadeTone || undefined,
       imageUrl: category.includes('Argila') ? craftPlaceholders.fornecedor_argila : craftPlaceholders.fornecedor_barbante,
     });
 
     setIsModalOpen(false);
     setName('');
     setDescription('');
+    setUnit('');
+    setPriceBRL('');
+    setStockQty('');
+    setBatchCode('');
+    setShadeTone('');
+    setMinOrderQty('');
   };
 
   return (
@@ -63,7 +78,10 @@ export const SupplierMaterialsView: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            navigate('/fornecedor/materiais/novo');
+            setIsModalOpen(true);
+          }}
           className="bg-[#1A543E] hover:bg-[#123D2C] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
         >
           <Plus className="w-4 h-4" />
@@ -71,7 +89,19 @@ export const SupplierMaterialsView: React.FC = () => {
         </button>
       </div>
 
-      {/* Materials Grid */}
+      {/* Materials Grid or Empty State */}
+      {supplierMaterials.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Nenhum material cadastrado"
+          description="Cadastre seus lotes de matérias-primas, linhas, fios, argilas e insumos para disponibilizar no catálogo B2B para as artesãs brasileiras."
+          actionText="Cadastrar Primeiro Material"
+          onAction={() => {
+            navigate('/fornecedor/materiais/novo');
+            setIsModalOpen(true);
+          }}
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {supplierMaterials.map((mat) => (
           <div
@@ -128,6 +158,7 @@ export const SupplierMaterialsView: React.FC = () => {
           </div>
         ))}
       </div>
+      )}
 
       {/* MODAL: CADASTRAR MATERIAL / LOTE */}
       {isModalOpen && (
