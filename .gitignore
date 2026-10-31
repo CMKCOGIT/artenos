@@ -35,3 +35,6 @@ service-account*.json
 
 # Vercel
 .vercel
+
+# Resultados de teste de carga (k6)
+load-tests/resultado-*.json
