@@ -28,6 +28,12 @@ deste repositório (`server.ts`, `src/services/*`, `database/schema.sql`).
 
 ## 2. Achados prioritários 🔴 (corrigir antes de escalar)
 
+> **Atualização:** os achados A (rate limit), B (paginação) e parte do D
+> (limite de corpo) receberam uma **mitigação baseline** nesta branch
+> (`src/lib/rate-limit.ts`, teto em `getProducts`, `express.json({ limit })`).
+> O texto abaixo mantém o contexto e aponta o que ainda falta (ex.: Redis para
+> limite global, paginação real na UI).
+
 ### 🔴 A. Sem rate limiting em lugar nenhum
 `grep` por `rate limit / throttle / 429` não retornou nada. O `REDIS_URL` está
 declarado no `.env.example` mas **não é usado no código**. Sem isso:

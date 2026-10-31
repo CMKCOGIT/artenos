@@ -9,7 +9,18 @@ export interface ProductFilters {
   isReadyToShip?: boolean;
   isCustomizable?: boolean;
   artisanId?: string;
+  /** Página de resultados (0-based). Usado com pageSize para paginação. */
+  offset?: number;
+  /** Quantidade de itens a retornar. Limitada por MAX_PAGE_SIZE. */
+  limit?: number;
 }
+
+/**
+ * Teto de segurança para leitura do catálogo. Mesmo sem paginação explícita,
+ * nenhuma chamada traz mais que isto, evitando leitura ilimitada no banco
+ * conforme o catálogo cresce (ver docs/testes-seguranca-carga.md, achado B).
+ */
+export const MAX_PAGE_SIZE = 500;
 
 export function mapProductRowToProduct(row: any): Product {
   const artisan = row.artesans || {};
@@ -112,8 +123,18 @@ export class ProductsService {
       }
 
       if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        // Sanitiza o termo: remove caracteres que quebram o filtro `or` do
+        // PostgREST (vírgula, parênteses) e limita o tamanho.
+        const term = String(filters.search).replace(/[,()]/g, ' ').trim().slice(0, 100);
+        if (term) {
+          query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+        }
       }
+
+      // Paginação com teto de segurança: nunca lê o catálogo inteiro sem limite.
+      const pageSize = Math.min(filters?.limit ?? MAX_PAGE_SIZE, MAX_PAGE_SIZE);
+      const from = Math.max(0, filters?.offset ?? 0);
+      query = query.range(from, from + pageSize - 1);
 
       const { data, error } = await query;
 

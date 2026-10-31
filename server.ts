@@ -4,11 +4,23 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { logger } from './src/lib/logger';
 import { serverEnv } from './src/lib/server-env';
+import { createRateLimiter } from './src/lib/rate-limit';
 
 const app = express();
 const PORT = Number(serverEnv.PORT) || 3000;
 
-app.use(express.json());
+// Confia no proxy (Vercel/Cloudflare) para obter o IP real em X-Forwarded-For.
+app.set('trust proxy', 1);
+
+// Limite de tamanho do corpo: evita que um POST gigante consuma memória.
+app.use(express.json({ limit: '100kb' }));
+
+// Rate limiting por IP nos endpoints públicos /api (primeira camada anti-abuso).
+// Webhooks toleram mais volume pois rejeitam cedo; os demais são mais restritos.
+const webhookLimiter = createRateLimiter({ windowMs: 60_000, max: 300 });
+const apiLimiter = createRateLimiter({ windowMs: 60_000, max: 120 });
+app.use('/api/webhooks', webhookLimiter);
+app.use(['/api/chat', '/api/audit'], apiLimiter);
 
 // Instância segura do Supabase com service_role (USADA EXCLUSIVAMENTE NO SERVIDOR)
 const supabaseAdmin = serverEnv.SUPABASE_SERVICE_ROLE_KEY && serverEnv.SUPABASE_URL

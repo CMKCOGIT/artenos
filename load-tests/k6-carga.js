@@ -158,6 +158,6 @@ export function handleSummary(data) {
 `;
   return {
     stdout: resumo,
-    'load-tests/resultado-' + SCENARIO + '.json': JSON.stringify(data, null, 2),
+    ['load-tests/resultado-' + SCENARIO + '.json']: JSON.stringify(data, null, 2),
   };
 }
