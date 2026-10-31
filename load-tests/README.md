@@ -7,12 +7,23 @@ segurança/LGPD em [`../docs/testes-seguranca-carga.md`](../docs/testes-seguranc
 ## Pré-requisitos
 Instale o k6: https://grafana.com/docs/k6/latest/set-up/install-k6/
 
-## Rodar
+## Dois scripts (medem coisas diferentes)
+- **`k6-carga.js`** — bate na borda web (Vercel/SPA). Mede CDN/servidor, **não** o banco.
+- **`k6-supabase-db.js`** — bate no REST do Supabase igual o navegador faz. **Este mede o banco** (pool de conexões, RLS, query do catálogo). Use este para "muita requisição no banco".
+
+## Rodar — borda web
 ```bash
 BASE_URL="https://staging.seu-app.com.br" k6 run -e SCENARIO=smoke  k6-carga.js   # sanidade
-BASE_URL="https://staging.seu-app.com.br" k6 run -e SCENARIO=load   k6-carga.js   # carga esperada
 BASE_URL="https://staging.seu-app.com.br" k6 run -e SCENARIO=stress k6-carga.js   # acha o teto
-BASE_URL="https://staging.seu-app.com.br" k6 run -e SCENARIO=spike  k6-carga.js   # surto súbito
+```
+
+## Rodar — banco (Supabase)
+```bash
+SUPABASE_URL="https://SEU-PROJETO.supabase.co" \
+SUPABASE_ANON_KEY="sb_publishable_... ou anon key" \
+k6 run -e SCENARIO=smoke k6-supabase-db.js        # comece pelo smoke!
+
+# depois suba: -e SCENARIO=load  /  stress  /  spike
 ```
 
 ## Resultado
