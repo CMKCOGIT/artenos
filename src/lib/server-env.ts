@@ -18,6 +18,10 @@ const serverEnvSchema = z.object({
   PAGARME_API_KEY: z.string().optional().default(''),
   PAGARME_WEBHOOK_SECRET: z.string().optional().default(''),
   ANTIFRAUD_API_KEY: z.string().optional().default(''),
+  REDIS_URL: z.string().optional().default(''),
+  REDIS_TOKEN: z.string().optional().default(''),
+  /** Origens permitidas para CORS, separadas por vírgula. Vazio = mesma origem. */
+  CORS_ORIGINS: z.string().optional().default(''),
   PORT: z.string().optional().default('3000'),
 });
 
@@ -29,5 +33,8 @@ export const serverEnv = serverEnvSchema.parse({
   PAGARME_API_KEY: process.env.PAGARME_API_KEY || '',
   PAGARME_WEBHOOK_SECRET: process.env.PAGARME_WEBHOOK_SECRET || '',
   ANTIFRAUD_API_KEY: process.env.ANTIFRAUD_API_KEY || '',
+  REDIS_URL: process.env.REDIS_URL || '',
+  REDIS_TOKEN: process.env.REDIS_TOKEN || '',
+  CORS_ORIGINS: process.env.CORS_ORIGINS || '',
   PORT: process.env.PORT || '3000',
 });

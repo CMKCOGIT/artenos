@@ -2,9 +2,12 @@ import express, { Request, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
+import helmet from 'helmet';
+import cors from 'cors';
+import { z } from 'zod';
 import { logger } from './src/lib/logger';
 import { serverEnv } from './src/lib/server-env';
-import { createRateLimiter } from './src/lib/rate-limit';
+import { createRateLimiter, getRedis } from './src/lib/rate-limit';
 
 const app = express();
 const PORT = Number(serverEnv.PORT) || 3000;
@@ -12,15 +15,48 @@ const PORT = Number(serverEnv.PORT) || 3000;
 // Confia no proxy (Vercel/Cloudflare) para obter o IP real em X-Forwarded-For.
 app.set('trust proxy', 1);
 
+// Headers de segurança (CSP, HSTS, no-sniff, etc.).
+app.use(helmet());
+
+// CORS com allowlist explícita. Sem CORS_ORIGINS, só mesma origem é aceita.
+const allowedOrigins = serverEnv.CORS_ORIGINS
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Permite requisições sem Origin (curl, server-to-server, webhooks).
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Origem não permitida por CORS'));
+    },
+    credentials: true,
+  })
+);
+
 // Limite de tamanho do corpo: evita que um POST gigante consuma memória.
 app.use(express.json({ limit: '100kb' }));
 
-// Rate limiting por IP nos endpoints públicos /api (primeira camada anti-abuso).
+// Rate limiting nos endpoints /api (Redis global quando configurado; memória senão).
 // Webhooks toleram mais volume pois rejeitam cedo; os demais são mais restritos.
-const webhookLimiter = createRateLimiter({ windowMs: 60_000, max: 300 });
-const apiLimiter = createRateLimiter({ windowMs: 60_000, max: 120 });
+const redis = getRedis(serverEnv.REDIS_URL, serverEnv.REDIS_TOKEN);
+const webhookLimiter = createRateLimiter({ windowMs: 60_000, max: 300, prefix: 'rl:webhook', redis });
+const apiLimiter = createRateLimiter({ windowMs: 60_000, max: 120, prefix: 'rl:api', redis });
 app.use('/api/webhooks', webhookLimiter);
 app.use(['/api/chat', '/api/audit'], apiLimiter);
+
+// Schema de validação do corpo de auditoria: só ações conhecidas são aceitas.
+const auditSchema = z.object({
+  action: z.enum([
+    'create', 'update', 'delete', 'login', 'logout',
+    'payment', 'refund', 'status_change', 'export', 'view',
+  ]),
+  entityType: z.string().min(1).max(64),
+  entityId: z.string().max(128).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
 
 // Instância segura do Supabase com service_role (USADA EXCLUSIVAMENTE NO SERVIDOR)
 const supabaseAdmin = serverEnv.SUPABASE_SERVICE_ROLE_KEY && serverEnv.SUPABASE_URL
@@ -214,17 +250,20 @@ app.post('/api/chat/signed-url', authenticateUser, async (req: Request, res: Res
  * 3. Log de Auditoria Seguro (PROTEGIDO POR AUTH)
  */
 app.post('/api/audit', authenticateUser, async (req: Request, res: Response) => {
-  const { action, entityType, entityId, metadata } = req.body;
   const user = (req as any).user;
 
-  if (!action || !entityType) {
-    return res.status(400).json({ error: 'Dados insuficientes para auditoria' });
+  // Valida o corpo contra o schema: ações fora do enum são rejeitadas,
+  // evitando poluição/forja de registros de auditoria pelo cliente.
+  const parsed = auditSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Dados de auditoria inválidos', issues: parsed.error.issues });
   }
+  const { action, entityType, entityId, metadata } = parsed.data;
 
   if (supabaseAdmin) {
     try {
       await supabaseAdmin.from('audit_logs').insert({
-        actor_id: user.id,
+        actor_id: user.id, // ator sempre do JWT, nunca do corpo
         action,
         entity_type: entityType,
         entity_id: entityId || null,
